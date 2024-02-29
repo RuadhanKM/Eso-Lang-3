@@ -13,6 +13,8 @@
 #define TOKEN_PAR 0b0000000010000000000
 #define TOKEN_CBL 0b0000000100000000000
 #define TOKEN_DEF 0b0000001000000000000
+#define TOKEN_ARR 0b0000010000000000000
+#define TOKEN_CON 0b0000100000000000000
 
 #define TOKENV_EQL '='
 #define TOKENV_ADD '+'
@@ -26,7 +28,10 @@
 #define TOKENV_EPR ')'
 #define TOKENV_BCB '{'
 #define TOKENV_ECB '}'
+#define TOKENV_BAR '['
+#define TOKENV_EAR ']'
 #define TOKENV_PRS ','
 #define TOKENV_EDL ';'
 
 #define TOKENV_DEF "let"
+#define TOKENV_CON "if"
