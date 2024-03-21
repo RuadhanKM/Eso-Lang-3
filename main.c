@@ -5,7 +5,14 @@
 
 #include "enums.h"
 
-#define DEBUGLEVEL 0
+#define DEBUGLEVEL 1
+
+#if DEBUGLEVEL > 1
+#include <intrin.h>
+#else
+#define __debugbreak()
+#endif // DEBUGLEVEL > 1
+
 
 static void* smalloc(size_t size) {
 	void* m = malloc(size);
@@ -241,6 +248,7 @@ static void grammerCheck(int token, int check) {
 	if (DEBUGLEVEL > 3) printf("\x1b[33mCHECKING GRAMMER: %s\n\x1b[0m", getTokenNameFromValue(check));
 	if ((token & check) == 0) {
 		printf("Syntax error: expected \"%s\", got \"%s\"", getTokenNameFromValue(check), getTokenNameFromValue(token));
+		__debugbreak();
 		exit(401);
 	}
 }
@@ -252,6 +260,7 @@ static void grammerMatch(FILE* sourceFilePtr, int check) {
 
 static void grammerError(char* message, int token) {
 	printf("Syntax error: expected \"%s\", got \"%s\"", message, getTokenNameFromValue(token));
+	__debugbreak();
 	exit(401);
 }
 
@@ -272,6 +281,7 @@ static int grammerArray(FILE* sourceFilePtr, int currentToken) {
 	do {
 		currentToken = grammerComparison(sourceFilePtr, nextToken(sourceFilePtr, NULL));
 	} while (currentToken != TOKEN_EAR);
+	currentToken = nextToken(sourceFilePtr, NULL);
 	grammerDepth--;
 	return currentToken;
 }
@@ -303,23 +313,22 @@ static int grammerPrimary(FILE* sourceFilePtr, int currentToken) {
 	if (DEBUGLEVEL > 1) printf("\x1b[32m%sGRAMMER PRIMARY CALL: %s\n\x1b[0m", str_repeat("| ", grammerDepth), getTokenNameFromValue(currentToken));
 	grammerDepth++;
 
-	grammerCheck(currentToken, TOKEN_NUM | TOKEN_VAR | TOKEN_BPR | TOKEN_STR);
+	grammerCheck(currentToken, TOKEN_NUM | TOKEN_VAR | TOKEN_BPR | TOKEN_STR | TOKEN_BAR);
 
+	int nt = peekToken(sourceFilePtr, NULL);
 	if (currentToken == TOKEN_BPR) {
-		int o = grammerParenthasis(sourceFilePtr, currentToken);
-		grammerDepth--;
-		return o;
-	} else {	
-		int nt = peekToken(sourceFilePtr, NULL);
-		if (currentToken == TOKEN_VAR && nt == TOKEN_BAR) {
-			nt = grammerFunc(sourceFilePtr, currentToken);
-		} else {
-			nt = nextToken(sourceFilePtr, NULL);
-		}
-		grammerDepth--;
-		return nt;
+		nt = grammerParenthasis(sourceFilePtr, currentToken);
+	} else if (currentToken == TOKEN_BAR) {
+		nt = grammerArray(sourceFilePtr, currentToken);
+	} else if (currentToken == TOKEN_VAR && nt == TOKEN_BAR) {
+		nt = grammerFunc(sourceFilePtr, currentToken);
+	} else {
+		nt = nextToken(sourceFilePtr, NULL);
 	}
+	grammerDepth--;
+	return nt;
 }
+
 
 static int grammerUnary(FILE* sourceFilePtr, int currentToken, char* currentValue) {
 	if (DEBUGLEVEL > 1) printf("\x1b[32m%sGRAMMER UNARY CALL: %s\n\x1b[0m", str_repeat("| ", grammerDepth), getTokenNameFromValue(currentToken));
@@ -386,14 +395,14 @@ static void grammerStatement(FILE* sourceFilePtr, int currentToken) {
 		// Def function
 		if (currentToken == TOKEN_BCB) {
 			grammerCodeBlock(sourceFilePtr, currentToken);
-			grammerArray(sourceFilePtr, nextToken(sourceFilePtr, NULL));
-			grammerMatch(sourceFilePtr, TOKEN_EDL);
+			currentToken = grammerArray(sourceFilePtr, nextToken(sourceFilePtr, NULL));
+			grammerCheck(currentToken, TOKEN_EDL);
 			if (DEBUGLEVEL > 0) printf("\x1b[1;36mDEFINE FUNCTION\x1b[0m\n");
 		}
 		// Def var
 		else {
 			currentToken = grammerComparison(sourceFilePtr, currentToken);
-			grammerMatch(sourceFilePtr, TOKEN_EDL);
+			grammerCheck(currentToken, TOKEN_EDL);
 			if (DEBUGLEVEL > 0) printf("\x1b[1;36mDEFINE VAR\x1b[0m\n");
 		}
 		grammerDepth--;
@@ -402,8 +411,8 @@ static void grammerStatement(FILE* sourceFilePtr, int currentToken) {
 	
 	// Call function
 	if (currentToken == TOKEN_VAR) {
-		grammerFunc(sourceFilePtr, currentToken);
-		grammerMatch(sourceFilePtr, TOKEN_EDL);
+		currentToken = grammerFunc(sourceFilePtr, currentToken);
+		grammerCheck(currentToken, TOKEN_EDL);
 		if (DEBUGLEVEL > 0) printf("\x1b[1;36mCALL FUNCTION\x1b[0m\n");
 		grammerDepth--;
 		return;
