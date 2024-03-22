@@ -13,16 +13,27 @@
 #define __debugbreak()
 #endif // DEBUGLEVEL > 1
 
-
+/**
+ * Wrapper for malloc that exits and errors if malloc fails
+ * @param size - ammount of memory to be allocted, passed to malloc
+ * @return Pointer to the memory, returned from malloc
+ */
 static void* smalloc(size_t size) {
 	void* m = malloc(size);
 	if (m == NULL) {
 		printf("Out of memory!");
+		__debugbreak();
 		exit(102);
 	}
 	return m;
 }
 
+/**
+ * Allocates a new string that is the str repeated by times
+ * @param str - char string to be repeated
+ * @param times - the number of times to repeat str
+ * @return The new string, must be freed
+ */
 static char* str_repeat(char* str, int times) {
 	if (times < 1) return "";
 	int ostrlen = strlen(str);
@@ -37,6 +48,11 @@ static char* str_repeat(char* str, int times) {
 	return ret;
 }
 
+/**
+ * Returns a string literal representation of a token
+ * @param token - a TOKEN_... enum
+ * @return The string literal, does not need to be freed
+ */
 static char* getTokenNameFromValue(int token) {
 	switch (token) {
 		case TOKEN_EQL:
@@ -84,6 +100,12 @@ static char* getTokenNameFromValue(int token) {
 	}
 }
 
+/**
+ * Gets the next token, comusuming the reqired chars from sourceFilePtr
+ * @param sourceFilePtr - file buffer of the source code
+ * @param OUT value - if present, sets this variable to the value of the token, (e.g. variable name, string value, number value, ect.,) otherwise returns NULL
+ * @return The TOKEN_... enum
+ */
 static int __nextToken(FILE* sourceFilePtr, char** value) {
 	char curChar = getc(sourceFilePtr);
 	if (curChar == EOF) return -1;
@@ -216,6 +238,12 @@ static int __nextToken(FILE* sourceFilePtr, char** value) {
 	return -1;
 }
 
+/**
+ * Wrapper for __nextToken() that prints debug messages
+ * @param sourceFilePtr - file buffer of the source code
+ * @param OUT value - if present, sets this variable to the value of the token, (e.g. variable name, string value, number value, ect.,) otherwise returns NULL
+ * @return The TOKEN_... enum
+ */
 static int nextToken(FILE* sourceFilePtr, char** value) {
 	char* tValue = NULL;
 	if (value == NULL) value = &tValue;
@@ -227,6 +255,12 @@ static int nextToken(FILE* sourceFilePtr, char** value) {
 	return token;
 }
 
+/**
+ * Wrapper for __nextToken() that prints debug messages but does not consume chars from the file buffer
+ * @param sourceFilePtr - file buffer of the source code
+ * @param OUT value - if present, sets this variable to the value of the token, (e.g. variable name, string value, number value, ect.,) otherwise returns NULL
+ * @return The TOKEN_... enum
+ */
 static int peekToken(FILE* sourceFilePtr, char** value) {
 	int pos = ftell(sourceFilePtr);
 	char* tValue = NULL;
@@ -242,8 +276,18 @@ static int peekToken(FILE* sourceFilePtr, char** value) {
 
 static int grammerDepth = 0;
 
+/**
+ * Gets the next statement
+ * @param sourceFilePtr - file buffer of the source code
+ * @param currentToken - the value of the first TOKEN_... enum in the statement
+ */
 static void grammerStatement(FILE* sourceFilePointer, int currentToken);
 
+/**
+ * Checks if token == check and errors if not. Bitwise or multiple tokens in check to check multiple values
+ * @param token - the TOKEN_... enum to check
+ * @param check - the TOKEN_... enum to check against
+ */
 static void grammerCheck(int token, int check) {
 	if (DEBUGLEVEL > 3) printf("\x1b[33mCHECKING GRAMMER: %s\n\x1b[0m", getTokenNameFromValue(check));
 	if ((token & check) == 0) {
@@ -253,17 +297,33 @@ static void grammerCheck(int token, int check) {
 	}
 }
 
+/**
+ * Wrapper for grammerCheck that first calls nextToken() and passes that to token
+ * @param sourceFilePtr - file buffer of the source code
+ * @param check - the TOKEN_... enum to check against
+ */
 static void grammerMatch(FILE* sourceFilePtr, int check) {
 	int token = nextToken(sourceFilePtr, NULL);
 	grammerCheck(token, check);
 }
 
+/**
+ * Errors with message, which should be in the format "Syntax error: expected "[message]", got "[TOKEN_... enum]"
+ * @param message - message in error
+ * @param token - token in error
+ */
 static void grammerError(char* message, int token) {
 	printf("Syntax error: expected \"%s\", got \"%s\"", message, getTokenNameFromValue(token));
 	__debugbreak();
 	exit(401);
 }
 
+/**
+ * Gets the next parenthasis
+ * @param sourceFilePtr - file buffer of the source code
+ * @param currentToken - the value of the first TOKEN_... enum in the parenthasis
+ * @return the first TOKEN_... enum after the parenthasis
+ */
 static int grammerParenthasis(FILE* sourceFilePtr, int currentToken) {
 	if (DEBUGLEVEL > 1) printf("\x1b[32m%sGRAMMER PARENTHASIS CALL: %s\n\x1b[0m", str_repeat("| ", grammerDepth), getTokenNameFromValue(currentToken));
 	grammerDepth++;
@@ -274,6 +334,12 @@ static int grammerParenthasis(FILE* sourceFilePtr, int currentToken) {
 	return nextToken(sourceFilePtr, NULL);
 }
 
+/**
+ * Gets the next array
+ * @param sourceFilePtr - file buffer of the source code
+ * @param currentToken - the value of the first TOKEN_... enum in the array
+ * @return the first TOKEN_... enum after the array
+ */
 static int grammerArray(FILE* sourceFilePtr, int currentToken) {
 	if (DEBUGLEVEL > 1) printf("\x1b[32m%sGRAMMER ARRAY CALL: %s\n\x1b[0m", str_repeat("| ", grammerDepth), getTokenNameFromValue(currentToken));
 	grammerDepth++;
@@ -286,6 +352,12 @@ static int grammerArray(FILE* sourceFilePtr, int currentToken) {
 	return currentToken;
 }
 
+/**
+ * Gets the next code block
+ * @param sourceFilePtr - file buffer of the source code
+ * @param currentToken - the value of the first TOKEN_... enum in the code block
+ * @return the first TOKEN_... enum after the code block
+ */
 static int grammerCodeBlock(FILE* sourceFilePtr, int currentToken) {
 	if (DEBUGLEVEL > 1) printf("\x1b[32m%sGRAMMER CODE BLOCK CALL: %s\n\x1b[0m", str_repeat("| ", grammerDepth), getTokenNameFromValue(currentToken));
 	grammerDepth++;
@@ -299,6 +371,12 @@ static int grammerCodeBlock(FILE* sourceFilePtr, int currentToken) {
 	return currentToken;
 }
 
+/**
+ * Gets the next function call
+ * @param sourceFilePtr - file buffer of the source code
+ * @param currentToken - the value of the first TOKEN_... enum in the function call
+ * @return the first TOKEN_... enum after the function call
+ */
 static int grammerFunc(FILE* sourceFilePtr, int currentToken) {
 	if (DEBUGLEVEL > 1) printf("\x1b[32m%sGRAMMER FUNC CALL: %s\n\x1b[0m", str_repeat("| ", grammerDepth), getTokenNameFromValue(currentToken));
 	grammerDepth++;
@@ -309,6 +387,12 @@ static int grammerFunc(FILE* sourceFilePtr, int currentToken) {
 	return currentToken;
 }
 
+/**
+ * Gets the next primary
+ * @param sourceFilePtr - file buffer of the source code
+ * @param currentToken - the value of the first TOKEN_... enum in the primary
+ * @return the first TOKEN_... enum after the primary
+ */
 static int grammerPrimary(FILE* sourceFilePtr, int currentToken) {
 	if (DEBUGLEVEL > 1) printf("\x1b[32m%sGRAMMER PRIMARY CALL: %s\n\x1b[0m", str_repeat("| ", grammerDepth), getTokenNameFromValue(currentToken));
 	grammerDepth++;
@@ -329,7 +413,12 @@ static int grammerPrimary(FILE* sourceFilePtr, int currentToken) {
 	return nt;
 }
 
-
+/**
+ * Gets the next unary
+ * @param sourceFilePtr - file buffer of the source code
+ * @param currentToken - the value of the first TOKEN_... enum in the unary
+ * @return the first TOKEN_... enum after the unary
+ */
 static int grammerUnary(FILE* sourceFilePtr, int currentToken, char* currentValue) {
 	if (DEBUGLEVEL > 1) printf("\x1b[32m%sGRAMMER UNARY CALL: %s\n\x1b[0m", str_repeat("| ", grammerDepth), getTokenNameFromValue(currentToken));
 	grammerDepth++;
@@ -342,6 +431,12 @@ static int grammerUnary(FILE* sourceFilePtr, int currentToken, char* currentValu
 	return currentToken;
 }
 
+/**
+ * Gets the next term
+ * @param sourceFilePtr - file buffer of the source code
+ * @param currentToken - the value of the first TOKEN_... enum in the term
+ * @return the first TOKEN_... enum after the term
+ */
 static int grammerTerm(FILE* sourceFilePtr, int currentToken) {
 	if (DEBUGLEVEL > 1) printf("\x1b[32m%sGRAMMER TERM CALL: %s\n\x1b[0m", str_repeat("| ", grammerDepth), getTokenNameFromValue(currentToken));
 	grammerDepth++;
@@ -355,6 +450,12 @@ static int grammerTerm(FILE* sourceFilePtr, int currentToken) {
 	return currentToken;
 }
 
+/**
+ * Gets the next expression
+ * @param sourceFilePtr - file buffer of the source code
+ * @param currentToken - the value of the first TOKEN_... enum in the expression
+ * @return the first TOKEN_... enum after the expression
+ */
 static int grammerExpression(FILE* sourceFilePtr, int currentToken) {
 	if (DEBUGLEVEL > 1) printf("\x1b[32m%sGRAMMER EXPRESSION CALL: %s\n\x1b[0m", str_repeat("| ", grammerDepth), getTokenNameFromValue(currentToken));
 	grammerDepth++;
@@ -368,6 +469,12 @@ static int grammerExpression(FILE* sourceFilePtr, int currentToken) {
 	return currentToken;
 }
 
+/**
+ * Gets the next comparison
+ * @param sourceFilePtr - file buffer of the source code
+ * @param currentToken - the value of the first TOKEN_... enum in the comparison
+ * @return the first TOKEN_... enum after the comparison
+ */
 static int grammerComparison(FILE* sourceFilePtr, int currentToken) {
 	if (DEBUGLEVEL > 1) printf("\x1b[32m%sGRAMMER COMPARISON CALL: %s\n\x1b[0m", str_repeat("| ", grammerDepth), getTokenNameFromValue(currentToken));
 	grammerDepth++;
@@ -440,8 +547,10 @@ static void grammerStatement(FILE* sourceFilePtr, int currentToken) {
 	grammerError("=, if, or variable", currentToken);   
 }
 
-
-
+/**
+ * Begins parsing the program
+ * @param sourceFilePtr - file buffer of the source code
+ */
 static void grammerProgram(FILE* sourceFilePtr) {
 	while (!feof(sourceFilePtr)) {
 		grammerStatement(sourceFilePtr, nextToken(sourceFilePtr, NULL));
