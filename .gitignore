@@ -1,5 +1,6 @@
 *.exe
 *.es3
+out.eto
 
 .vs/
 x64/

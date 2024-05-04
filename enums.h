@@ -26,6 +26,8 @@
 #define TOKEN_ARS 0b0100000000000000000000000 // Array Seperator: ,
 #define TOKEN_RET 0b1000000000000000000000000 // Return: return
 
+#define NUM_TOKENS 25
+
 #define TOKENV_EQL '='
 #define TOKENV_ADD '+'
 #define TOKENV_SUB '-'
