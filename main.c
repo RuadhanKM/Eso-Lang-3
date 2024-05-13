@@ -326,11 +326,14 @@ static int peekToken(FILE* sourceFilePtr, char** value, int count) {
 static int grammerDepth = 0;
 
 /**
- * Gets the next statement
+ * Gets and emits the next statement, expects file buffer to be pointing to before first token
  * @param sourceFilePtr - file buffer of the source code
+ * @param outFilePtr - file buffer of the output
  * @param currentToken - the value of the first TOKEN_... enum in the statement
+ * @param an int representing whether the program is currently (1) defining functions (0) executing code
+ * @return an int representin what the new funcDefMode state should be
  */
-static void grammerStatement(FILE* sourceFilePointer, FILE* outFilePtr, int currentToken);
+static int grammerStatement(FILE* sourceFilePointer, FILE* outFilePtr, int currentToken, int funcDefMode);
 
 /**
  * Checks if token == check and errors if not. Bitwise or multiple tokens in check to check multiple values
@@ -414,13 +417,13 @@ static int grammerParenthasis(FILE* sourceFilePtr, FILE* outFilePtr, int current
 	if (DEBUGLEVEL > 1) printf("\x1b[32m%sGRAMMER PARENTHASIS CALL: %s\n\x1b[0m", str_repeat("| ", grammerDepth), getTokenNameFromValue(currentToken));
 	grammerDepth++;
 
-	fprintf(outFilePtr, "(");
+	fputs("(", outFilePtr);
 
 	grammerCheck(currentToken, TOKEN_BPR);
 	grammerComparison(sourceFilePtr, outFilePtr, currentToken);
 	grammerMatch(sourceFilePtr, TOKEN_EPR);
 
-	fprintf(outFilePtr, ")");
+	fputs(")", outFilePtr);
 
 	grammerDepth--;
 	return TOKEN_EPR;
@@ -432,20 +435,23 @@ static int grammerParenthasis(FILE* sourceFilePtr, FILE* outFilePtr, int current
  * @param currentToken - the value of the first TOKEN_... enum in the array
  * @return the first TOKEN_... enum after the array
  */
-static int grammerArray(FILE* sourceFilePtr, FILE* outFilePtr, int currentToken, int paramLike) {
+static int grammerArray(FILE* sourceFilePtr, FILE* outFilePtr, int currentToken, int paramLike, int paramDefLike) {
 	if (DEBUGLEVEL > 1) printf("\x1b[32m%sGRAMMER ARRAY CALL: %s\n\x1b[0m", str_repeat("| ", grammerDepth), getTokenNameFromValue(currentToken));
 	grammerDepth++;
 
-	if (paramLike) fprintf(outFilePtr, "("); else fprintf(outFilePtr, "[");
+	if (paramLike) fputs("(", outFilePtr); else fputs("[", outFilePtr);
+
+	if (peekToken(sourceFilePtr, NULL, 1) != TOKEN_EAR && paramLike && paramDefLike) fputs("int ", outFilePtr);
 
 	grammerCheck(currentToken, TOKEN_BAR);
 	currentToken = grammerComparison(sourceFilePtr, outFilePtr, currentToken);
 	while (nextToken(sourceFilePtr, NULL) != TOKEN_EAR) {
-		fprintf(outFilePtr, ", ");
+		fputs(", ", outFilePtr);
+		if (paramLike && paramDefLike) fputs("int ", outFilePtr);
 		currentToken = grammerComparison(sourceFilePtr, outFilePtr, currentToken);
 	}
 
-	if (paramLike) fprintf(outFilePtr, ")"); else fprintf(outFilePtr, "]");
+	if (paramLike) fputs(")", outFilePtr); else fputs("]", outFilePtr);
 
 	grammerDepth--;
 	return TOKEN_EAR;
@@ -461,12 +467,12 @@ static void grammerCodeBlock(FILE* sourceFilePtr, FILE* outFilePtr, int currentT
 	if (DEBUGLEVEL > 1) printf("\x1b[32m%sGRAMMER CODE BLOCK CALL: %s\n\x1b[0m", str_repeat("| ", grammerDepth), getTokenNameFromValue(currentToken));
 	grammerDepth++;
 	
-	fprintf(outFilePtr, "{\n");
+	fputs("{\n", outFilePtr);
 	grammerCheck(currentToken, TOKEN_BCB);
 	do {
-		grammerStatement(sourceFilePtr, outFilePtr, NULL);
+		grammerStatement(sourceFilePtr, outFilePtr, NULL, 0);
 	} while (peekToken(sourceFilePtr, NULL, 1) != TOKEN_ECB);
-	fprintf(outFilePtr, "}\n");
+	fputs("}\n", outFilePtr);
 
 	grammerDepth--;
 }
@@ -485,11 +491,11 @@ static int grammerFunc(FILE* sourceFilePtr, FILE* outFilePtr, int currentToken) 
 	char* funcName = NULL;
 	// testFunc | [1, 2, 3]
 	currentToken = nextToken(sourceFilePtr, &funcName);
-	fprintf(outFilePtr, funcName);
+	fputs(funcName, outFilePtr);
 	
 	grammerCheck(currentToken, TOKEN_VAR);
 	
-	grammerArray(sourceFilePtr, outFilePtr, nextToken(sourceFilePtr, NULL), 1);
+	grammerArray(sourceFilePtr, outFilePtr, nextToken(sourceFilePtr, NULL), 1, 0);
 
 	grammerDepth--;
 	return currentToken;
@@ -515,7 +521,7 @@ static int grammerPrimary(FILE* sourceFilePtr, FILE* outFilePtr, int currentToke
 		currentToken = grammerParenthasis(sourceFilePtr, outFilePtr, currentToken);
 	} else if (nToken == TOKEN_BAR) {
 		currentToken = nextToken(sourceFilePtr, NULL);
-		currentToken = grammerArray(sourceFilePtr, outFilePtr, currentToken, 0);
+		currentToken = grammerArray(sourceFilePtr, outFilePtr, currentToken, 0, 0);
 	} else if (nToken == TOKEN_VAR && n2Token == TOKEN_BAR) {
 		currentToken = grammerFunc(sourceFilePtr, outFilePtr, currentToken);
 	} else {
@@ -523,7 +529,7 @@ static int grammerPrimary(FILE* sourceFilePtr, FILE* outFilePtr, int currentToke
 		currentToken = nextToken(sourceFilePtr, &varVal);
 		if (varVal == NULL) genericError(901, "Failed to parse var value!");
 
-		fprintf(outFilePtr, varVal);
+		fputs(varVal, outFilePtr);
 
 		free(varVal);
 	}
@@ -542,9 +548,9 @@ static int grammerUnary(FILE* sourceFilePtr, FILE* outFilePtr, int currentToken)
 	if (DEBUGLEVEL > 1) printf("\x1b[32m%sGRAMMER UNARY CALL: %s\n\x1b[0m", str_repeat("| ", grammerDepth), getTokenNameFromValue(currentToken));
 	grammerDepth++;
 
-	if (currentToken == TOKEN_SUB) {
+	if (peekToken(sourceFilePtr, NULL, 1) == TOKEN_SUB) {
 		nextToken(sourceFilePtr, NULL);
-		fprintf(outFilePtr, "-");
+		fputs("-", outFilePtr);
 	}
 	currentToken = grammerPrimary(sourceFilePtr, outFilePtr, currentToken);
 
@@ -565,7 +571,7 @@ static int grammerTerm(FILE* sourceFilePtr, FILE* outFilePtr, int currentToken) 
 	currentToken = grammerUnary(sourceFilePtr, outFilePtr, currentToken, NULL);
 	int pToken = peekToken(sourceFilePtr, NULL, 1);
 	while ((pToken & (TOKEN_MUL | TOKEN_DIV)) > 0) {
-		fprintf(outFilePtr, pToken == TOKEN_MUL ? " * " : " / ");
+		fputs(pToken == TOKEN_MUL ? " * " : " / ", outFilePtr);
 		currentToken = grammerUnary(sourceFilePtr, outFilePtr, nextToken(sourceFilePtr, NULL));
 		pToken = peekToken(sourceFilePtr, NULL, 1);
 	}
@@ -587,7 +593,7 @@ static int grammerExpression(FILE* sourceFilePtr, FILE* outFilePtr, int currentT
 	currentToken = grammerTerm(sourceFilePtr, outFilePtr, currentToken);
 	int pToken = peekToken(sourceFilePtr, NULL, 1);
 	while ((pToken & (TOKEN_ADD | TOKEN_SUB)) > 0) {
-		fprintf(outFilePtr, pToken == TOKEN_ADD ? " + " : " - ");
+		fputs(pToken == TOKEN_ADD ? " + " : " - ", outFilePtr);
 		currentToken = grammerTerm(sourceFilePtr, outFilePtr, nextToken(sourceFilePtr, NULL));
 		pToken = peekToken(sourceFilePtr, NULL, 1);
 	}
@@ -609,11 +615,11 @@ static int grammerComparison(FILE* sourceFilePtr, FILE* outFilePtr, int currentT
 	currentToken = grammerExpression(sourceFilePtr, outFilePtr, currentToken);
 	int pToken = peekToken(sourceFilePtr, NULL, 1);
 	while ((pToken & (TOKEN_DEQ | TOKEN_GTT | TOKEN_GTE | TOKEN_LST | TOKEN_LSE)) > 0) {
-		if (pToken == TOKEN_DEQ) fprintf(outFilePtr, " == "); else
-		if (pToken == TOKEN_GTT) fprintf(outFilePtr, " > "); else
-		if (pToken == TOKEN_GTE) fprintf(outFilePtr, " >= "); else
-		if (pToken == TOKEN_LST) fprintf(outFilePtr, " < "); else
-		if (pToken == TOKEN_LSE) fprintf(outFilePtr, " <= ");
+		if (pToken == TOKEN_DEQ) fputs(" == ", outFilePtr); else
+		if (pToken == TOKEN_GTT) fputs(" > ", outFilePtr); else
+		if (pToken == TOKEN_GTE) fputs(" >= ", outFilePtr); else
+		if (pToken == TOKEN_LST) fputs(" < ", outFilePtr); else
+		if (pToken == TOKEN_LSE) fputs(" <= ", outFilePtr);
 
 		currentToken = grammerExpression(sourceFilePtr, outFilePtr, nextToken(sourceFilePtr, NULL));
 		pToken = peekToken(sourceFilePtr, NULL, 1);
@@ -623,7 +629,7 @@ static int grammerComparison(FILE* sourceFilePtr, FILE* outFilePtr, int currentT
 	return currentToken;
 }
 
-static void grammerStatement(FILE* sourceFilePtr, FILE* outFilePtr, int currentToken) {
+static int grammerStatement(FILE* sourceFilePtr, FILE* outFilePtr, int currentToken, int funcDefMode) {
 	if (DEBUGLEVEL > 1) printf("\x1b[32m%sGRAMMER STATEMENT CALL: %s\n\x1b[0m", str_repeat("| ", grammerDepth), getTokenNameFromValue(currentToken));
 	grammerDepth++;
 
@@ -646,25 +652,34 @@ static void grammerStatement(FILE* sourceFilePtr, FILE* outFilePtr, int currentT
 		// Def function
 		if (currentToken == TOKEN_BAR) {
 			if (DEBUGLEVEL > 0) printf("\x1b[1;36mDEFINE FUNCTION\x1b[0m\n");
-			fprintf(outFilePtr, "void %s", potVarName);
+
+			if (!funcDefMode) genericError(903, "Function defined not at top of file!");
+			fputs("static void ", outFilePtr);
+			fputs(potVarName, outFilePtr);
 
 			free(potVarName);
 
-			currentToken = grammerArray(sourceFilePtr, outFilePtr, currentToken, 1);
+			currentToken = grammerArray(sourceFilePtr, outFilePtr, currentToken, 1, 1);
 			grammerMatch(sourceFilePtr, TOKEN_EQL);
 			grammerCodeBlock(sourceFilePtr, outFilePtr, nextToken(sourceFilePtr, NULL));
 
 			nextToken(sourceFilePtr, NULL);
 			grammerMatch(sourceFilePtr, TOKEN_EDL);
+
+			grammerDepth--;
+			return 1;
 		}
 		// Def var
 		else {
 			if (DEBUGLEVEL > 0) printf("\x1b[1;36mDEFINE VAR\x1b[0m\n");
-			fprintf(outFilePtr, "int %s = ", potVarName);
+
+			fputs("int ", outFilePtr);
+			fputs(potVarName, outFilePtr);
+			fputs(" = ", outFilePtr);
 
 			currentToken = grammerComparison(sourceFilePtr, outFilePtr, currentToken);
 
-			fprintf(outFilePtr, ";\n");
+			fputs(";\n", outFilePtr);
 
 			free(potVarName);
 
@@ -672,7 +687,7 @@ static void grammerStatement(FILE* sourceFilePtr, FILE* outFilePtr, int currentT
 		}
 
 		grammerDepth--;
-		return;
+		return 0;
 	}
 	
 	// Call function / Redefine var
@@ -688,9 +703,10 @@ static void grammerStatement(FILE* sourceFilePtr, FILE* outFilePtr, int currentT
 			if (DEBUGLEVEL > 0) printf("\x1b[1;36mREDEFINE VAR\x1b[0m\n");
 			grammerMatch(sourceFilePtr, TOKEN_VAR); // a | = 12;
 			grammerMatch(sourceFilePtr, TOKEN_EQL); // a = | 12;
-			fprintf(outFilePtr, "%s = ", iVarVal);
+			fputs(iVarVal, outFilePtr);
+			fputs(" = ", outFilePtr);
 			currentToken = grammerComparison(sourceFilePtr, outFilePtr, TOKEN_EQL);
-			fprintf(outFilePtr, ";\n");
+			fputs(";\n", outFilePtr);
 			grammerMatch(sourceFilePtr, TOKEN_EDL);
 		} 
 		// Call function
@@ -698,18 +714,18 @@ static void grammerStatement(FILE* sourceFilePtr, FILE* outFilePtr, int currentT
 			if (DEBUGLEVEL > 0) printf("\x1b[1;36mCALL FUNCTION\x1b[0m\n");
 			grammerFunc(sourceFilePtr, outFilePtr, currentToken);
 			grammerMatch(sourceFilePtr, TOKEN_EDL);
-			fprintf(outFilePtr, ";\n");
+			fputs(";\n", outFilePtr);
 		}
 
 		grammerDepth--;
-		return;
+		return 0;
 	}
 
 	// If statement
 	if (currentToken == TOKEN_CON) {
 		if (DEBUGLEVEL > 0) printf("\x1b[1;36mIF STATEMENT\x1b[0m\n");
 
-		fprintf(outFilePtr, "if ");
+		fputs("if ", outFilePtr);
 
 		// | if (a > b) { ... };
 		nextToken(sourceFilePtr, NULL);
@@ -723,7 +739,7 @@ static void grammerStatement(FILE* sourceFilePtr, FILE* outFilePtr, int currentT
 		grammerMatch(sourceFilePtr, TOKEN_EDL);
 
 		grammerDepth--;
-		return;
+		return 0;
 	}
 
 	// Return statement
@@ -732,26 +748,39 @@ static void grammerStatement(FILE* sourceFilePtr, FILE* outFilePtr, int currentT
 
 		nextToken(sourceFilePtr, NULL);
 
-		fprintf(outFilePtr, "return ");
+		fputs("return ", outFilePtr);
 
 		grammerComparison(sourceFilePtr, outFilePtr, currentToken);
 		grammerMatch(sourceFilePtr, TOKEN_EDL);
 
-		fprintf(outFilePtr, ";\n");
+		fputs(";\n", outFilePtr);
 
 		grammerDepth--;
-		return;
+		return 0;
 	}
 }
 
 /**
  * Begins parsing the program
  * @param sourceFilePtr - file buffer of the source code
+ * @return whether the program had any executable code (main function)
  */
-static void grammerProgram(FILE* sourceFilePtr, FILE* outFilePtr) {
+static int grammerProgram(FILE* sourceFilePtr, FILE* outFilePtr) {
+	int funcDefMode = 1;
 	while (!feof(sourceFilePtr)) {
-		grammerStatement(sourceFilePtr, outFilePtr, NULL);
+		int oldSourcePos = ftell(sourceFilePtr);
+		int oldOutPos = ftell(outFilePtr);
+
+		if (!grammerStatement(sourceFilePtr, outFilePtr, NULL, funcDefMode)) {
+			if (funcDefMode) {
+				fseek(sourceFilePtr, oldSourcePos, SEEK_SET);
+				fseek(outFilePtr, oldOutPos, SEEK_SET);
+				fputs("int main() {\n", outFilePtr);
+			}
+			funcDefMode = 0;
+		}
 	}
+	return funcDefMode;
 }
 
 int main() {
@@ -761,26 +790,41 @@ int main() {
 	// Open source code file
 	sourceFilePtr = fopen("test.es3", "r");
 	// Open out code file
-	outFilePtr = fopen("out.eto", "w");
+	outFilePtr = fopen("out.c", "w");
 
 	if (sourceFilePtr == NULL || outFilePtr == NULL) {
 		printf("File can't be opened");
 		exit(101);
 	}
 
-	fprintf(outFilePtr, "int main() {\n");
+	fputs("#include <stdio.h>\n", outFilePtr);
 
 	// Read file
-	grammerProgram(sourceFilePtr, outFilePtr);
+	if (!grammerProgram(sourceFilePtr, outFilePtr)) {
+		fputs("return 0;\n}", outFilePtr);
+	}
 
-	fprintf(outFilePtr, "}");
 
 	fclose(sourceFilePtr);
 	fclose(outFilePtr);
 
-	char* actualpath = _fullpath(NULL, "./out.eto", 260);
+	char* actualpath = _fullpath(NULL, "./out.c", 260);
+	char* command = (char*) smalloc(sizeof(char) * (9 + strlen(actualpath)));
 
-	printf("Output: %s", actualpath);
+	sprintf(command, "gcc %s", actualpath);
+	printf("%s\r\n", command);
+	system(command);
+
+	printf("Output: %s\r\n", actualpath);
+
+	free(actualpath);
+
+	actualpath = _fullpath(NULL, "./a.exe", 260);
+	printf("%s\r\n", actualpath);
+	system(actualpath);
+
+	free(command);
+	free(actualpath);
 
 	return 0;
 }
