@@ -2,6 +2,15 @@
 
 A small language that transpiles to C.
 
+## Usage
+ - Must have gcc installed
+```
+> make
+> .\es3 input.es3 out
+> .\out.exe
+Hello World!
+```
+
 
 ## Docs
 
@@ -101,12 +110,4 @@ let loop[a] = {
 };
 
 loop[7];
-```
-
-#### Usage
-
- - Requires GCC
-
-```
-
 ```
