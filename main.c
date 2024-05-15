@@ -6,7 +6,7 @@
 
 #include "enums.h"
 
-#define DEBUGLEVEL 1
+#define DEBUGLEVEL 0
 
 #if DEBUGLEVEL > 2
 #include <intrin.h>
@@ -831,7 +831,6 @@ int main(int argc, char** argv) {
 	printf("%s\r\n", command);
 	system(command);
 
-	printf("Output: %s\r\n", actualpath);
 
 	free(actualpath);
 
