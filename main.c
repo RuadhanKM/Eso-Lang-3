@@ -15,6 +15,24 @@
 #endif // DEBUGLEVEL > 2
 
 /**
+ * Gets and emits the next statement, expects file buffer to be pointing to before first token
+ * @param sourceFilePtr - file buffer of the source code
+ * @param outFilePtr - file buffer of the output
+ * @param currentToken - the value of the first TOKEN_... enum in the statement
+ * @param an int representing whether the program is currently (1) defining functions (0) executing code
+ * @return an int representin what the new funcDefMode state should be
+ */
+static int grammerStatement(FILE* sourceFilePointer, FILE* outFilePtr, int currentToken, int funcDefMode);
+
+/**
+ * Gets the next comparison, expects file buffer to be pointing to before first token
+ * @param sourceFilePtr - file buffer of the source code
+ * @param currentToken - the value of the first TOKEN_... enum in the comparison
+ * @return the first TOKEN_... enum after the comparison
+ */
+static int grammerComparison(FILE* sourceFilePtr, FILE* outFilePtr, int currentToken);
+
+/**
  * Errors with message and error code
  * @param message - message in error
  * @param code - error code
@@ -326,16 +344,6 @@ static int peekToken(FILE* sourceFilePtr, char** value, int count) {
 static int grammerDepth = 0;
 
 /**
- * Gets and emits the next statement, expects file buffer to be pointing to before first token
- * @param sourceFilePtr - file buffer of the source code
- * @param outFilePtr - file buffer of the output
- * @param currentToken - the value of the first TOKEN_... enum in the statement
- * @param an int representing whether the program is currently (1) defining functions (0) executing code
- * @return an int representin what the new funcDefMode state should be
- */
-static int grammerStatement(FILE* sourceFilePointer, FILE* outFilePtr, int currentToken, int funcDefMode);
-
-/**
  * Checks if token == check and errors if not. Bitwise or multiple tokens in check to check multiple values
  * @param token - the TOKEN_... enum to check
  * @param check - the TOKEN_... enum to check against
@@ -568,7 +576,7 @@ static int grammerTerm(FILE* sourceFilePtr, FILE* outFilePtr, int currentToken) 
 	if (DEBUGLEVEL > 1) printf("\x1b[32m%sGRAMMER TERM CALL: %s\n\x1b[0m", str_repeat("| ", grammerDepth), getTokenNameFromValue(currentToken));
 	grammerDepth++;
 
-	currentToken = grammerUnary(sourceFilePtr, outFilePtr, currentToken, NULL);
+	currentToken = grammerUnary(sourceFilePtr, outFilePtr, currentToken);
 	int pToken = peekToken(sourceFilePtr, NULL, 1);
 	while ((pToken & (TOKEN_MUL | TOKEN_DIV)) > 0) {
 		fputs(pToken == TOKEN_MUL ? " * " : " / ", outFilePtr);
@@ -783,14 +791,23 @@ static int grammerProgram(FILE* sourceFilePtr, FILE* outFilePtr) {
 	return funcDefMode;
 }
 
-int main() {
+int main(int argc, char** argv) {
+	if (argc < 2) genericError(100, "Too few arguments! Usage: es3 fileIn.es3 [fileOut]");
+	if (argc > 3) genericError(100, "Too many arguments! Usage: es3 fileIn.es3 [fileOut]");
+
 	FILE* sourceFilePtr;
 	FILE* outFilePtr;
-	
+
+	char* outFileName = argc == 3 ? argv[2] : "out";
+	char* outTransName = smalloc(sizeof(char) * (3 * strlen(outFileName)));
+	char* outCompName = smalloc(sizeof(char) * (5 * strlen(outFileName)));
+	sprintf(outTransName, "%s.c", outFileName);
+	sprintf(outCompName, "%s.exe", outFileName);
+
 	// Open source code file
-	sourceFilePtr = fopen("test.es3", "r");
+	sourceFilePtr = fopen(argv[1], "r");
 	// Open out code file
-	outFilePtr = fopen("out.c", "w");
+	outFilePtr = fopen(outTransName, "w");
 
 	if (sourceFilePtr == NULL || outFilePtr == NULL) {
 		printf("File can't be opened");
@@ -804,14 +821,13 @@ int main() {
 		fputs("return 0;\n}", outFilePtr);
 	}
 
-
 	fclose(sourceFilePtr);
 	fclose(outFilePtr);
 
-	char* actualpath = _fullpath(NULL, "./out.c", 260);
-	char* command = (char*) smalloc(sizeof(char) * (9 + strlen(actualpath)));
+	char* actualpath = _fullpath(NULL, outTransName, 260);
+	char* command = (char*) smalloc(sizeof(char) * (9 + strlen(actualpath) + strlen(outCompName)));
 
-	sprintf(command, "gcc %s", actualpath);
+	sprintf(command, "gcc %s -o %s", actualpath, outCompName);
 	printf("%s\r\n", command);
 	system(command);
 
@@ -819,12 +835,14 @@ int main() {
 
 	free(actualpath);
 
-	actualpath = _fullpath(NULL, "./a.exe", 260);
+	actualpath = _fullpath(NULL, outCompName, 260);
 	printf("%s\r\n", actualpath);
 	system(actualpath);
 
 	free(command);
 	free(actualpath);
+
+	unlink(outTransName);
 
 	return 0;
 }

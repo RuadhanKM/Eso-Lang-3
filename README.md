@@ -1,4 +1,3 @@
-
 # Eso Lang 3
 
 A small language that transpiles to C.
@@ -104,3 +103,10 @@ let loop[a] = {
 loop[7];
 ```
 
+#### Usage
+
+ - Requires GCC
+
+```
+
+```
