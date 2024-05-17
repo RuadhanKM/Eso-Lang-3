@@ -447,7 +447,7 @@ static int grammerArray(FILE* sourceFilePtr, FILE* outFilePtr, int currentToken,
 	if (DEBUGLEVEL > 1) printf("\x1b[32m%sGRAMMER ARRAY CALL: %s\n\x1b[0m", str_repeat("| ", grammerDepth), getTokenNameFromValue(currentToken));
 	grammerDepth++;
 
-	if (paramLike) fputs("(", outFilePtr); else fputs("[", outFilePtr);
+	if (paramLike) fputs("(", outFilePtr); else fputs("{ ", outFilePtr);
 
 	if (peekToken(sourceFilePtr, NULL, 1) != TOKEN_EAR && paramLike && paramDefLike) fputs("int ", outFilePtr);
 
@@ -459,7 +459,7 @@ static int grammerArray(FILE* sourceFilePtr, FILE* outFilePtr, int currentToken,
 		currentToken = grammerComparison(sourceFilePtr, outFilePtr, currentToken);
 	}
 
-	if (paramLike) fputs(")", outFilePtr); else fputs("]", outFilePtr);
+	if (paramLike) fputs(")", outFilePtr); else fputs(" }", outFilePtr);
 
 	grammerDepth--;
 	return TOKEN_EAR;
@@ -538,6 +538,7 @@ static int grammerPrimary(FILE* sourceFilePtr, FILE* outFilePtr, int currentToke
 		if (varVal == NULL) genericError(901, "Failed to parse var value!");
 
 		fputs(varVal, outFilePtr);
+		if (nToken == TOKEN_VAR) fputs("__raw", outFilePtr);
 
 		free(varVal);
 	}
@@ -610,12 +611,6 @@ static int grammerExpression(FILE* sourceFilePtr, FILE* outFilePtr, int currentT
 	return currentToken;
 }
 
-/**
- * Gets the next comparison, expects file buffer to be pointing to before first token
- * @param sourceFilePtr - file buffer of the source code
- * @param currentToken - the value of the first TOKEN_... enum in the comparison
- * @return the first TOKEN_... enum after the comparison
- */
 static int grammerComparison(FILE* sourceFilePtr, FILE* outFilePtr, int currentToken) {
 	if (DEBUGLEVEL > 1) printf("\x1b[32m%sGRAMMER COMPARISON CALL: %s\n\x1b[0m", str_repeat("| ", grammerDepth), getTokenNameFromValue(currentToken));
 	grammerDepth++;
@@ -681,15 +676,52 @@ static int grammerStatement(FILE* sourceFilePtr, FILE* outFilePtr, int currentTo
 		else {
 			if (DEBUGLEVEL > 0) printf("\x1b[1;36mDEFINE VAR\x1b[0m\n");
 
-			fputs("int ", outFilePtr);
+			int peekType = 0;
+			int i = 1;
+
+			char* potVarTypeValue = NULL;
+			while ((peekType & (TOKEN_STR | TOKEN_NUM | TOKEN_BAR | TOKEN_VAR)) == 0) {
+				if (potVarTypeValue != NULL) free(potVarTypeValue);
+				potVarTypeValue = NULL;
+
+				peekType = peekToken(sourceFilePtr, &potVarTypeValue, i);
+
+				i++;
+			}
+
+			const char* varType;
+			switch (peekType) {
+				case TOKEN_STR:
+					varType = "char* ";
+					break;
+				case TOKEN_NUM:
+					varType = "double ";
+					break;
+				case TOKEN_BAR:
+					varType = "int ";
+					break;
+				case TOKEN_VAR:
+					varType = strcat(srealloc(potVarTypeValue, strlen(potVarTypeValue) + 9), "__type ");
+					break;
+				default:
+					genericError(904, "Failed to parse var type!");
+					break;
+			}
+			
+			fputs(varType, outFilePtr);
 			fputs(potVarName, outFilePtr);
+			fputs("__raw", outFilePtr);
 			fputs(" = ", outFilePtr);
 
 			currentToken = grammerComparison(sourceFilePtr, outFilePtr, currentToken);
 
-			fputs(";\n", outFilePtr);
+			fputs("; typedef ", outFilePtr);
+			fputs(varType, outFilePtr);
+			fputs(potVarName, outFilePtr);
+			fputs("__type;\n", outFilePtr);
 
 			free(potVarName);
+			if (potVarTypeValue != NULL) free(potVarTypeValue);
 
 			grammerMatch(sourceFilePtr, TOKEN_EDL);
 		}
@@ -791,7 +823,10 @@ static int grammerProgram(FILE* sourceFilePtr, FILE* outFilePtr) {
 	return funcDefMode;
 }
 
-int main(int argc, char** argv) {
+int main(int argc) {
+	argc = 2;
+	char* argv[2] = {"es3.exe", "test.es3"};
+
 	if (argc < 2) genericError(100, "Too few arguments! Usage: es3 fileIn.es3 [fileOut]");
 	if (argc > 3) genericError(100, "Too many arguments! Usage: es3 fileIn.es3 [fileOut]");
 
@@ -831,17 +866,16 @@ int main(int argc, char** argv) {
 	printf("%s\r\n", command);
 	system(command);
 
-
 	free(actualpath);
 
 	actualpath = _fullpath(NULL, outCompName, 260);
 	printf("%s\r\n", actualpath);
-	system(actualpath);
+	if (DEBUGLEVEL == 0) system(actualpath);
 
 	free(command);
 	free(actualpath);
 
-	unlink(outTransName);
+	if (DEBUGLEVEL == 0) unlink(outTransName);
 
 	return 0;
 }
