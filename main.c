@@ -182,6 +182,8 @@ static char* getTokenNameFromValue(int token) {
 			return "Return";
 		case TOKEN_ARS:
 			return "Array Seperator";
+		case TOKEN_LOP:
+			return "Loop";
 		default:
 			return "UNKOWN / COMBINATION ";
 	}
@@ -329,6 +331,7 @@ static int __nextToken(FILE* sourceFilePtr, char** value) {
 		if (!strcmp(tokenText, TOKENV_DEF)) { free(tokenText); return TOKEN_DEF; }
 		if (!strcmp(tokenText, TOKENV_CON)) { free(tokenText); return TOKEN_CON; }
 		if (!strcmp(tokenText, TOKENV_RET)) { free(tokenText); return TOKEN_RET; }
+		if (!strcmp(tokenText, TOKENV_LOP)) { free(tokenText); return TOKEN_LOP; }
 
 		if (value != NULL) *value = tokenText; else free(tokenText);
 		
@@ -791,7 +794,7 @@ static int grammerStatement(FILE* sourceFilePtr, FILE* outFilePtr, int currentTo
 	char* iVarVal = NULL;
 	currentToken = peekToken(sourceFilePtr, &iVarVal, 1);
 
-	grammerCheck(currentToken, TOKEN_DEF | TOKEN_VAR | TOKEN_CON | TOKEN_RET);
+	grammerCheck(currentToken, TOKEN_DEF | TOKEN_VAR | TOKEN_CON | TOKEN_RET | TOKEN_LOP);
 
 	// Define var / function
 	if (currentToken == TOKEN_DEF) {
@@ -890,6 +893,30 @@ static int grammerStatement(FILE* sourceFilePtr, FILE* outFilePtr, int currentTo
 		if (DEBUGLEVEL > 0) printf("\x1b[1;36mIF STATEMENT\x1b[0m\n");
 
 		fputs("if (esvTruthy", outFilePtr);
+
+		// | if (a > b) { ... };
+		nextToken(sourceFilePtr, NULL);
+		// if | (a > b) { ... };
+		char* inPar = grammerParenthasis(sourceFilePtr, outFilePtr, nextToken(sourceFilePtr, NULL));
+		fputs(inPar, outFilePtr);
+		free(inPar);
+		fputs(") ", outFilePtr);
+		currentToken = nextToken(sourceFilePtr, NULL);
+		// if (a > b) | { ... };
+		grammerCodeBlock(sourceFilePtr, outFilePtr, currentToken);
+		// if (a > b) { ... | };
+		grammerMatch(sourceFilePtr, TOKEN_ECB);
+		grammerMatch(sourceFilePtr, TOKEN_EDL);
+
+		grammerDepth--;
+		return 0;
+	}
+
+	// While statement
+	if (currentToken == TOKEN_LOP) {
+		if (DEBUGLEVEL > 0) printf("\x1b[1;36mLOOP STATEMENT\x1b[0m\n");
+
+		fputs("while (esvTruthy", outFilePtr);
 
 		// | if (a > b) { ... };
 		nextToken(sourceFilePtr, NULL);

@@ -27,6 +27,7 @@ Hello World!
 | Exponentiation | `^` | Used for exponents, not bitwise XOR; Not working | 
 | Definition | `let` |
 | Condititional | `if` |
+| Loop | `while` |
 | Return | `return` |  |
 | Comparison | `==` | 
 | Greater Than | `>` | 
@@ -79,6 +80,13 @@ if (a > b) {
     ...
 };
 ```
+
+#### While Statement
+```
+while (a > b) {
+    ...
+};
+```
 ## Examples
 
 #### Hello world
@@ -103,6 +111,15 @@ let bar[c, d] = {
 
 bar[7, 12];
 bar[4, 3];
+```
+
+#### Iterative Loop
+```
+let i = 0;
+while (i < 20) {
+    print[i];
+    i = i + 1;
+};
 ```
 
 #### Recursive Loop
