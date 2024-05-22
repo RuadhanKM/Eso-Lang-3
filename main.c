@@ -978,7 +978,7 @@ int main(int argc, char** argv) {
 		exit(101);
 	}
 
-	fputs("#include <stdio.h>\n#include \"transUtil.c\"\n\n", outFilePtr);
+	fputs("#include <stdio.h>\n#include \"std.c\"\n\n", outFilePtr);
 
 	// Read file
 	if (!grammerProgram(sourceFilePtr, outFilePtr)) {

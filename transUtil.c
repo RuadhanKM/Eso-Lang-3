@@ -8,20 +8,6 @@ typedef struct ES3Var_ {
     int valBool;
 } ES3Var;
 
-static void print__raw(ES3Var a) {
-    switch (a.type) {
-        case 1:
-            printf("%g\n", a.valNum);
-            break;
-        case 2:
-            printf("%s\n", a.valString);
-            break;
-        case 3:
-            printf("%s\n", a.valBool ? "True" : "False");
-            break;
-    }
-}
-
 static ES3Var esvComp(ES3Var a, int op, ES3Var b) {
     if (op == 0) return a;
 

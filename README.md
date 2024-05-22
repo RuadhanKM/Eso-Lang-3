@@ -45,6 +45,7 @@ Hello World!
 | Signature | Docs | 
 | :---  | :----- |
 | `print[a]` | Prints `a` to console |
+| `input[a] -> string` | Prints `a` and then waits for user input, when the user presses enter, the function returns the string input. Using this function will cause a memory leak :(
 
 ### Syntax
 
