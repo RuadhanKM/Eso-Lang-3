@@ -6,7 +6,7 @@
 
 #include "enums.h"
 
-#define DEBUGLEVEL 2
+#define DEBUGLEVEL 0
 
 #if DEBUGLEVEL > 2
 #include <intrin.h>
@@ -952,9 +952,9 @@ static int grammerProgram(FILE* sourceFilePtr, FILE* outFilePtr) {
 	return funcDefMode;
 }
 
-int main(int argc) {
-	argc = 2;
-	char* argv[2] = {"es3.exe", "test.es3"};
+int main(int argc, char** argv) {
+	//argc = 2;
+	//char* argv[2] = {"es3.exe", "test.es3"};
 
 	if (argc < 2) genericError(100, "Too few arguments! Usage: es3 fileIn.es3 [fileOut]");
 	if (argc > 3) genericError(100, "Too many arguments! Usage: es3 fileIn.es3 [fileOut]");
