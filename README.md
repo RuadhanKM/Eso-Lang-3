@@ -78,15 +78,14 @@ if (a > b) {
 ## Examples
 
 #### Hello world
- - When transpilied to C, `<stdio.h>` is imported for you so you have accsess to all of those functions.
 ```
-printf["Hello World!"];
+print["Hello World!"];
 ```
 
 #### Using Functions
 ```
 let foo[a, b] = {
-	printf["%i\n", a * b];
+	print[a * b];
 };
 
 let bar[c, d] = {
@@ -105,7 +104,7 @@ bar[4, 3];
 #### Recursive Loop
 ```
 let loop[a] = {
-	printf["I is: %i\n", a];
+	print[a];
 	if (a > 0) { loop[a-1]; };
 };
 

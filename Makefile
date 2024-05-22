@@ -1,2 +1,2 @@
 es3:
-	gcc main.c -o es3.exe
+	gcc main.c -Wall -o es3.exe
