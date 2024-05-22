@@ -27,7 +27,7 @@ Hello World!
 | Exponentiation | `^` | Used for exponents, not bitwise XOR; Not working | 
 | Definition | `let` |
 | Condititional | `if` |
-| Return | `return` | Not working |
+| Return | `return` |  |
 | Comparison | `==` | 
 | Greater Than | `>` | 
 | Less Than | `<` |
@@ -41,6 +41,10 @@ Hello World!
 | End Array | `]` |
 | Array Seperator | `,` |
 
+### Built-in Functions
+| Signature | Docs | 
+| :---  | :----- |
+| `print[a]` | Prints `a` to console |
 
 ### Syntax
 
@@ -55,7 +59,6 @@ let array = [ 1, 2, 3 ]; // Not working
 #### Define Function
 
  - All functions MUST be defined at the top of a file.
- - The order functions are defined does matter, so in this example `funcName` could be used in `funcName2` but not the other way around
 
 ```
 let funcName[param1, param2, param3] = {
