@@ -687,7 +687,6 @@ static char* grammerTerm(FILE* sourceFilePtr, FILE* outFilePtr, int currentToken
 
 	char* outExpr = (char*) smalloc(1);
 	outExpr[0] = '\0';
-	outExpr = sstrcat(outExpr, "esvTerm(");
 	char* inExp = grammerUnary(sourceFilePtr, outFilePtr, currentToken);
 	outExpr = sstrcat(outExpr, inExp);
 
@@ -699,14 +698,13 @@ static char* grammerTerm(FILE* sourceFilePtr, FILE* outFilePtr, int currentToken
 		free(inExp);
 		inExp = grammerUnary(sourceFilePtr, outFilePtr, nextToken(sourceFilePtr, NULL));
 
+		outExpr = sstrpre(outExpr, "esvTerm(");
 		outExpr = sstrcat(outExpr, inExp);
 		outExpr = sstrcat(outExpr, ")");
-		outExpr = sstrpre(outExpr, "esvTerm(");
 		
 		pToken = peekToken(sourceFilePtr, NULL, 1);
 	}
 
-	outExpr = sstrcat(outExpr, ", 0, (ES3Var) { .type = 0 })");
 	free(inExp);
 
 	grammerDepth--;
@@ -725,7 +723,6 @@ static char* grammerExpression(FILE* sourceFilePtr, FILE* outFilePtr, int curren
 
 	char* outExpr = (char*) smalloc(1);
 	outExpr[0] = '\0';
-	outExpr = sstrcat(outExpr, "esvExpr(");
 	char* inExp = grammerTerm(sourceFilePtr, outFilePtr, currentToken);
 	outExpr = sstrcat(outExpr, inExp);
 
@@ -737,14 +734,13 @@ static char* grammerExpression(FILE* sourceFilePtr, FILE* outFilePtr, int curren
 		free(inExp);
 		inExp = grammerTerm(sourceFilePtr, outFilePtr, nextToken(sourceFilePtr, NULL));
 
+		outExpr = sstrpre(outExpr, "esvExpr(");
 		outExpr = sstrcat(outExpr, inExp);
 		outExpr = sstrcat(outExpr, ")");
-		outExpr = sstrpre(outExpr, "esvExpr(");
 
 		pToken = peekToken(sourceFilePtr, NULL, 1);
 	}
 
-	outExpr = sstrcat(outExpr, ", 0, (ES3Var) { .type = 0 })");
 	free(inExp);
 
 	grammerDepth--;
@@ -757,7 +753,6 @@ static char* grammerComparison(FILE* sourceFilePtr, FILE* outFilePtr, int curren
 
 	char* outExpr = (char*) smalloc(1);
 	outExpr[0] = '\0';
-	outExpr = sstrcat(outExpr, "esvComp(");
 	char* inExp = grammerExpression(sourceFilePtr, outFilePtr, currentToken);
 	outExpr = sstrcat(outExpr, inExp);
 
@@ -772,14 +767,12 @@ static char* grammerComparison(FILE* sourceFilePtr, FILE* outFilePtr, int curren
 		free(inExp);
 		inExp = grammerExpression(sourceFilePtr, outFilePtr, nextToken(sourceFilePtr, NULL));
 		
+		outExpr = sstrpre(outExpr, "esvComp(");
 		outExpr = sstrcat(outExpr, inExp);
 		outExpr = sstrcat(outExpr, ")");
-		outExpr = sstrpre(outExpr, "esvComp(");
 
 		pToken = peekToken(sourceFilePtr, NULL, 1);
 	}
-
-	outExpr = sstrcat(outExpr, ", 0, (ES3Var) { .type = 0 })");
 
 	free(inExp);
 
