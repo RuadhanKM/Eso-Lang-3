@@ -1,4 +1,5 @@
 #include <string.h>
+#include <math.h>
 
 typedef struct ES3Var_ {
     int type;
@@ -78,6 +79,18 @@ static ES3Var esvExpr(ES3Var a, int op, ES3Var b) {
                     return (ES3Var) { .type = 1, .valNum = a.valNum + b.valNum };
                 case 2:
                     return (ES3Var) { .type = 1, .valNum = a.valNum - b.valNum };
+            }
+    }
+}
+
+static ES3Var esvExpo(ES3Var a, int op, ES3Var b) {
+    if (op == 0) return a;
+
+    switch (a.type) {
+        case 1:
+            switch (op) {
+                case 1:
+                    return (ES3Var) { .type = 1, .valNum = pow(a.valNum, b.valNum) };
             }
     }
 }

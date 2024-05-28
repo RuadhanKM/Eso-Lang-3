@@ -37,11 +37,24 @@ static char* grammerComparison(FILE* sourceFilePtr, FILE* outFilePtr, int curren
  * @param message - message in error
  * @param code - error code
  */
-static void genericError(int code, const char* const message, ...) {
+static void genericError(FILE* sourceFilePtr, int code, const char* const message, ...) {
 	va_list args;
 	va_start(args, message);
 
+	if (sourceFilePtr != NULL) {
+		int lineNum = 0;
+		fseek(sourceFilePtr, 1L, SEEK_CUR);
+		while (ftell(sourceFilePtr) > 1) {
+			fseek(sourceFilePtr, -1L, SEEK_CUR);
+			char c = ungetc(getc(sourceFilePtr), sourceFilePtr);
+			if (c == '\n') lineNum++;
+		}
+
+		printf("Error on line %i: ", lineNum+1);
+	}
+
 	vprintf(message, args);
+
 
 	va_end(args);
 
@@ -57,7 +70,7 @@ static void genericError(int code, const char* const message, ...) {
 static void* smalloc(size_t size) {
 	void* m = malloc(size);
 	if (m == NULL) {
-		genericError(102, "Out of memory!");
+		genericError(NULL, 102, "Out of memory!");
 	}
 	return m;
 }
@@ -71,7 +84,7 @@ static void* srealloc(void* _Block, size_t size) {
 	void* m = realloc(_Block, size);
 	if (m == NULL) {
 		free(m);
-		genericError(102, "Out of memory!");
+		genericError(NULL, 102, "Out of memory!");
 	}
 	_Block = m;
 	return m;
@@ -184,6 +197,12 @@ static char* getTokenNameFromValue(int token) {
 			return "Array Seperator";
 		case TOKEN_LOP:
 			return "Loop";
+		case TOKEN_EOF:
+			return "End of File";
+		case TOKEN_TRU:
+			return "True";
+		case TOKEN_FLS:
+			return "False";
 		default:
 			return "UNKOWN / COMBINATION ";
 	}
@@ -197,15 +216,15 @@ static char* getTokenNameFromValue(int token) {
  */
 static int __nextToken(FILE* sourceFilePtr, char** value) {
 	char curChar = getc(sourceFilePtr);
-	if (curChar == EOF) return -1;
+	if (curChar == EOF) return TOKEN_EOF;
 	char nextChar = ungetc(getc(sourceFilePtr), sourceFilePtr);
 
 	while (curChar == ' ' || curChar == '\t' || curChar == '\r' || curChar == '\n') {
 		curChar = getc(sourceFilePtr);
 		nextChar = ungetc(getc(sourceFilePtr), sourceFilePtr);
 	}
-
 	if (DEBUGLEVEL > 4) printf("\x1b[38;5;241mCUR CHAR: %c, NEXT CHAR: %c\n\x1b[0m", curChar, nextChar);
+	if (curChar == EOF) return TOKEN_EOF;
 	
 	if (curChar == TOKENV_EQL) {
 		if (nextChar == TOKENV_EQL) {
@@ -249,7 +268,7 @@ static int __nextToken(FILE* sourceFilePtr, char** value) {
 		do {
 			curChar = getc(sourceFilePtr);
 			if (curChar == EOF) {
-				genericError(202, "Parsing Error: unclosed string!");
+				genericError(sourceFilePtr, 202, "Parsing Error: unclosed string!");
 				return -1;
 			};
 		} while (curChar != TOKENV_EST);
@@ -279,8 +298,7 @@ static int __nextToken(FILE* sourceFilePtr, char** value) {
 		if (curChar == '.') {
 			curChar = getc(sourceFilePtr);
 			if (!isdigit(curChar)) {
-				printf("Parsing Error: unfinished digit");
-				exit(206);
+				genericError(sourceFilePtr, 206, "Parsing Error: unfinished digit");
 				return -1;
 			}
 			while (isdigit(curChar)) {
@@ -332,14 +350,15 @@ static int __nextToken(FILE* sourceFilePtr, char** value) {
 		if (!strcmp(tokenText, TOKENV_CON)) { free(tokenText); return TOKEN_CON; }
 		if (!strcmp(tokenText, TOKENV_RET)) { free(tokenText); return TOKEN_RET; }
 		if (!strcmp(tokenText, TOKENV_LOP)) { free(tokenText); return TOKEN_LOP; }
+		if (!strcmp(tokenText, TOKENV_TRU)) { free(tokenText); return TOKEN_TRU; }
+		if (!strcmp(tokenText, TOKENV_FLS)) { free(tokenText); return TOKEN_FLS; }
 
 		if (value != NULL) *value = tokenText; else free(tokenText);
 		
 		return TOKEN_VAR;
 	}
 
-	printf("Parsing Error: unkown token found - \"%c\" / \"%i\"\n", curChar, curChar);
-	exit(201);
+	genericError(sourceFilePtr, 201, "Parsing Error: unkown token found - \"%c\" / \"%i\"\n", curChar, curChar);
 	return -1;
 }
 
@@ -390,7 +409,7 @@ static int grammerDepth = 0;
  * @param token - the TOKEN_... enum to check
  * @param check - the TOKEN_... enum to check against
  */
-static void grammerCheck(int token, int check) {
+static void grammerCheck(FILE* sourceFilePtr, int token, int check) {
 	char* combinedTokenString = smalloc(sizeof(char));
 	combinedTokenString[0] = '\0';
 	int checkPassed = 0;
@@ -418,7 +437,7 @@ static void grammerCheck(int token, int check) {
 
 	if (DEBUGLEVEL > 3) printf("\x1b[33mCHECKING GRAMMER: %s\n\x1b[0m", combinedTokenString);
 
-	if (!checkPassed) genericError(401, "Syntax error: expected \"%s\", got \"%s\"\n", combinedTokenString, getTokenNameFromValue(token));
+	if (!checkPassed) genericError(sourceFilePtr, 401, "Syntax error: expected \"%s\", got \"%s\"\n", combinedTokenString, getTokenNameFromValue(token));
 	free(combinedTokenString);
 	return;
 }
@@ -431,7 +450,7 @@ static void grammerCheck(int token, int check) {
  */
 static int grammerMatch(FILE* sourceFilePtr, int check) {
 	int token = nextToken(sourceFilePtr, NULL);
-	grammerCheck(token, check);
+	grammerCheck(sourceFilePtr, token, check);
 	return token;
 }
 
@@ -444,7 +463,7 @@ static int grammerMatch(FILE* sourceFilePtr, int check) {
  */
 static int grammerPeekMatch(FILE* sourceFilePtr, int check, int count) {
 	int token = peekToken(sourceFilePtr, NULL, 1);
-	grammerCheck(token, check);
+	grammerCheck(sourceFilePtr, token, check);
 	return token;
 }
 
@@ -453,8 +472,8 @@ static int grammerPeekMatch(FILE* sourceFilePtr, int check, int count) {
  * @param message - message in error
  * @param token - token in error
  */
-static void grammerError(char* message, int token) {
-	genericError("Syntax error: expected \"%s\", got \"%s\"\n", message, getTokenNameFromValue(token));
+static void grammerError(FILE* sourceFilePtr, char* message, int token) {
+	genericError(sourceFilePtr, "Syntax error: expected \"%s\", got \"%s\"\n", message, getTokenNameFromValue(token));
 }
 
 /**
@@ -471,7 +490,7 @@ static char* grammerParenthasis(FILE* sourceFilePtr, FILE* outFilePtr, int curre
 	outPar[0] = '\0';
 	outPar = sstrcat(outPar, "(");
 
-	grammerCheck(currentToken, TOKEN_BPR);
+	grammerCheck(sourceFilePtr, currentToken, TOKEN_BPR);
 
 	char* inComp = grammerComparison(sourceFilePtr, outFilePtr, currentToken);
 	outPar = sstrcat(outPar, inComp);
@@ -502,14 +521,14 @@ static char* grammerArray(FILE* sourceFilePtr, FILE* outFilePtr, int currentToke
 
 	if (peekToken(sourceFilePtr, NULL, 1) != TOKEN_EAR && paramLike && paramDefLike) primOut = sstrcat(primOut, "ES3Var ");
 
-	grammerCheck(currentToken, TOKEN_BAR);
+	grammerCheck(sourceFilePtr, currentToken, TOKEN_BAR);
 	
 	char* compIn;
 
 	if (paramDefLike) {
 		char* paramNameIn = NULL;
 		nextToken(sourceFilePtr, &paramNameIn);
-		if (paramNameIn == NULL) genericError(905, "Invalid function parameter!");
+		if (paramNameIn == NULL) genericError(sourceFilePtr, 905, "Invalid function parameter!");
 		primOut = sstrcat(primOut, paramNameIn);
 		primOut = sstrcat(primOut, "__raw");
 		free(paramNameIn);
@@ -525,7 +544,7 @@ static char* grammerArray(FILE* sourceFilePtr, FILE* outFilePtr, int currentToke
 		if (paramDefLike) {
 			char* paramNameIn = NULL;
 			nextToken(sourceFilePtr, &paramNameIn);
-			if (paramNameIn == NULL) genericError(905, "Invalid function parameter!");
+			if (paramNameIn == NULL) genericError(sourceFilePtr, 905, "Invalid function parameter!");
 			primOut = sstrcat(primOut, paramNameIn);
 			primOut = sstrcat(primOut, "__raw");
 			free(paramNameIn);
@@ -553,7 +572,7 @@ static void grammerCodeBlock(FILE* sourceFilePtr, FILE* outFilePtr, int currentT
 	grammerDepth++;
 	
 	fputs("{\n", outFilePtr);
-	grammerCheck(currentToken, TOKEN_BCB);
+	grammerCheck(sourceFilePtr, currentToken, TOKEN_BCB);
 	do {
 		grammerStatement(sourceFilePtr, outFilePtr, NULL, 0);
 	} while (peekToken(sourceFilePtr, NULL, 1) != TOKEN_ECB);
@@ -582,7 +601,7 @@ static char* grammerFunc(FILE* sourceFilePtr, FILE* outFilePtr, int currentToken
 	primOut = sstrcat(primOut, funcName);
 	primOut = sstrcat(primOut, "__raw");
 	
-	grammerCheck(currentToken, TOKEN_VAR);
+	grammerCheck(sourceFilePtr, currentToken, TOKEN_VAR);
 	
 	char* arrIn = grammerArray(sourceFilePtr, outFilePtr, nextToken(sourceFilePtr, NULL), 1, 0);
 	primOut = sstrcat(primOut, arrIn);
@@ -604,7 +623,7 @@ static char* grammerPrimary(FILE* sourceFilePtr, FILE* outFilePtr, int currentTo
 
 	char* potVarVal = NULL;
 	int nToken = peekToken(sourceFilePtr, &potVarVal, 1);
-	grammerCheck(nToken, TOKEN_NUM | TOKEN_VAR | TOKEN_BPR | TOKEN_STR | TOKEN_BAR);
+	grammerCheck(sourceFilePtr, nToken, TOKEN_NUM | TOKEN_VAR | TOKEN_BPR | TOKEN_STR | TOKEN_BAR | TOKEN_TRU | TOKEN_FLS);
 	int n2Token = peekToken(sourceFilePtr, NULL, 2);
 
 	if (nToken == TOKEN_BPR) {
@@ -620,7 +639,7 @@ static char* grammerPrimary(FILE* sourceFilePtr, FILE* outFilePtr, int currentTo
 		varVal[0] = '\0';
 
 		currentToken = nextToken(sourceFilePtr, &varVal);
-		if (varVal == NULL) genericError(901, "Failed to parse var value!");
+		if (varVal == NULL) genericError(sourceFilePtr, 901, "Failed to parse var value!");
 
 		switch (currentToken) {
 			case TOKEN_NUM:
@@ -634,9 +653,15 @@ static char* grammerPrimary(FILE* sourceFilePtr, FILE* outFilePtr, int currentTo
 			case TOKEN_VAR:
 				varVal = sstrcat(varVal, "__raw");
 				break;
+			case TOKEN_TRU:
+				varVal = sstrcat(varVal, "(ES3Var) { .type = 3, .valBool = 1 }");
+				break;
+			case TOKEN_FLS:
+				varVal = sstrcat(varVal, "(ES3Var) { .type = 3, .valBool = 0 }");
+				break;
 		
 			default:
-				genericError(902, "Failed to parse var type!");
+				genericError(sourceFilePtr, 902, "Failed to parse var type!");
 				break;
 		}
 
@@ -676,6 +701,41 @@ static char* grammerUnary(FILE* sourceFilePtr, FILE* outFilePtr, int currentToke
 }
 
 /**
+ * Gets the next expression
+ * @param sourceFilePtr - file buffer of the source code
+ * @param currentToken - the value of the first TOKEN_... enum in the expression
+ * @return A string with the transpiled source code for the expression
+ */
+static char* grammerExponentiation(FILE* sourceFilePtr, FILE* outFilePtr, int currentToken) {
+	if (DEBUGLEVEL > 1) printf("\x1b[32m%sGRAMMER EXPONENTIATION CALL: %s\n\x1b[0m", str_repeat("| ", grammerDepth), getTokenNameFromValue(currentToken));
+	grammerDepth++;
+
+	char* outExpr = (char*) smalloc(1);
+	outExpr[0] = '\0';
+	char* inExp = grammerUnary(sourceFilePtr, outFilePtr, currentToken);
+	outExpr = sstrcat(outExpr, inExp);
+
+	int pToken = peekToken(sourceFilePtr, NULL, 1);
+	while ((pToken & (TOKEN_EXP)) > 0) {
+		if (pToken == TOKEN_EXP) outExpr = sstrcat(outExpr, ", 1, ");
+
+		free(inExp);
+		inExp = grammerUnary(sourceFilePtr, outFilePtr, nextToken(sourceFilePtr, NULL));
+
+		outExpr = sstrpre(outExpr, "esvExpo(");
+		outExpr = sstrcat(outExpr, inExp);
+		outExpr = sstrcat(outExpr, ")");
+
+		pToken = peekToken(sourceFilePtr, NULL, 1);
+	}
+
+	free(inExp);
+
+	grammerDepth--;
+	return outExpr;
+}
+
+/**
  * Gets the next term
  * @param sourceFilePtr - file buffer of the source code
  * @param currentToken - the value of the first TOKEN_... enum in the term
@@ -687,7 +747,7 @@ static char* grammerTerm(FILE* sourceFilePtr, FILE* outFilePtr, int currentToken
 
 	char* outExpr = (char*) smalloc(1);
 	outExpr[0] = '\0';
-	char* inExp = grammerUnary(sourceFilePtr, outFilePtr, currentToken);
+	char* inExp = grammerExponentiation(sourceFilePtr, outFilePtr, currentToken);
 	outExpr = sstrcat(outExpr, inExp);
 
 	int pToken = peekToken(sourceFilePtr, NULL, 1);
@@ -696,7 +756,7 @@ static char* grammerTerm(FILE* sourceFilePtr, FILE* outFilePtr, int currentToken
 		if (pToken == TOKEN_DIV) outExpr = sstrcat(outExpr, ", 2, ");
 
 		free(inExp);
-		inExp = grammerUnary(sourceFilePtr, outFilePtr, nextToken(sourceFilePtr, NULL));
+		inExp = grammerExponentiation(sourceFilePtr, outFilePtr, nextToken(sourceFilePtr, NULL));
 
 		outExpr = sstrpre(outExpr, "esvTerm(");
 		outExpr = sstrcat(outExpr, inExp);
@@ -784,10 +844,16 @@ static int grammerStatement(FILE* sourceFilePtr, FILE* outFilePtr, int currentTo
 	if (DEBUGLEVEL > 1) printf("\x1b[32m%sGRAMMER STATEMENT CALL: %s\n\x1b[0m", str_repeat("| ", grammerDepth), getTokenNameFromValue(currentToken));
 	grammerDepth++;
 
+	if (currentToken == TOKEN_EOF) return 2;
+
 	char* iVarVal = NULL;
 	currentToken = peekToken(sourceFilePtr, &iVarVal, 1);
 
-	grammerCheck(currentToken, TOKEN_DEF | TOKEN_VAR | TOKEN_CON | TOKEN_RET | TOKEN_LOP);
+	if (currentToken == TOKEN_EOF) return 2;
+
+	if (currentToken == TOKEN_EOF) return 0;
+
+	grammerCheck(sourceFilePtr, currentToken, TOKEN_DEF | TOKEN_VAR | TOKEN_CON | TOKEN_RET | TOKEN_LOP);
 
 	// Define var / function
 	if (currentToken == TOKEN_DEF) {
@@ -795,16 +861,16 @@ static int grammerStatement(FILE* sourceFilePtr, FILE* outFilePtr, int currentTo
 
 		char* potVarName = NULL;
 		int varToken = nextToken(sourceFilePtr, &potVarName);
-		if (potVarName == NULL) genericError(901, "Failed to parse function/var name");
+		if (potVarName == NULL) genericError(sourceFilePtr, 901, "Failed to parse function/var name");
 
-		grammerCheck(varToken, TOKEN_VAR);
+		grammerCheck(sourceFilePtr, varToken, TOKEN_VAR);
 		currentToken = grammerMatch(sourceFilePtr, TOKEN_EQL | TOKEN_BAR);
 		
 		// Def function
 		if (currentToken == TOKEN_BAR) {
 			if (DEBUGLEVEL > 0) printf("\x1b[1;36mDEFINE FUNCTION\x1b[0m\n");
 
-			if (!funcDefMode) genericError(903, "Function defined not at top of file!");
+			if (!funcDefMode) genericError(sourceFilePtr, 903, "Function defined not at top of file!");
 			fputs("static ES3Var ", outFilePtr);
 			fputs(potVarName, outFilePtr);
 			fputs("__raw", outFilePtr);
@@ -852,7 +918,7 @@ static int grammerStatement(FILE* sourceFilePtr, FILE* outFilePtr, int currentTo
 		// | a -> [ <- 1, 2, 3];
 		int pToken = peekToken(sourceFilePtr, NULL, 2);
 
-		grammerCheck(pToken, TOKEN_EQL | TOKEN_BAR);
+		grammerCheck(sourceFilePtr, pToken, TOKEN_EQL | TOKEN_BAR);
 
 		// Redefine var
 		if (pToken == TOKEN_EQL) {
@@ -960,7 +1026,10 @@ static int grammerProgram(FILE* sourceFilePtr, FILE* outFilePtr) {
 		int oldSourcePos = ftell(sourceFilePtr);
 		int oldOutPos = ftell(outFilePtr);
 
-		if (!grammerStatement(sourceFilePtr, outFilePtr, NULL, funcDefMode)) {
+		int curFuncMode = grammerStatement(sourceFilePtr, outFilePtr, NULL, funcDefMode);
+		if (curFuncMode == 2) return funcDefMode;
+
+		if (curFuncMode == 0) {
 			if (funcDefMode) {
 				fseek(sourceFilePtr, oldSourcePos, SEEK_SET);
 				fseek(outFilePtr, oldOutPos, SEEK_SET);
@@ -973,11 +1042,13 @@ static int grammerProgram(FILE* sourceFilePtr, FILE* outFilePtr) {
 }
 
 int main(int argc, char** argv) {
-	//argc = 2;
-	//char* argv[2] = {"es3.exe", "test.es3"};
+	argc = 2;
+	argv = (char*[2]) {"es3.exe", "test.es3"};
 
-	if (argc < 2) genericError(100, "Too few arguments! Usage: es3 fileIn.es3 [fileOut]");
-	if (argc > 3) genericError(100, "Too many arguments! Usage: es3 fileIn.es3 [fileOut]");
+	FILE* test = NULL;
+
+	if (argc < 2) genericError(NULL, 100, "Too few arguments! Usage: es3 fileIn.es3 [fileOut]");
+	if (argc > 3) genericError(NULL, 100, "Too many arguments! Usage: es3 fileIn.es3 [fileOut]");
 
 	FILE* sourceFilePtr;
 	FILE* outFilePtr;

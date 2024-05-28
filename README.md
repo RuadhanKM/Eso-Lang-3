@@ -24,7 +24,7 @@ Hello World!
 | Subtraction | `-` | 
 | Multiplication | `*` | 
 | Division | `/` | 
-| Exponentiation | `^` | Used for exponents, not bitwise XOR; Not working | 
+| Exponentiation | `^` | Used for exponents, not bitwise XOR | 
 | Definition | `let` |
 | Condititional | `if` |
 | Loop | `while` |
@@ -41,12 +41,15 @@ Hello World!
 | Begin Array | `[` |
 | End Array | `]` |
 | Array Seperator | `,` |
+| True | `true` |
+| False | `false` |
 
 ### Built-in Functions
 | Signature | Docs | 
 | :---  | :----- |
 | `print[a]` | Prints `a` to console |
-| `input[a] -> string` | Prints `a` and then waits for user input, when the user presses enter, the function returns the string input. Using this function will cause a memory leak :(
+| `input[a] -> string` | Prints `a` and then waits for user input, when the user presses enter, the function returns the string input. Using this function will cause a memory leak :( |
+| `sqrt[a] -> number` | Gets the square root of a number |
 
 ### Syntax
 
@@ -55,6 +58,7 @@ Hello World!
 ```
 let string = "plugh";
 let number = 123.456;
+let bool = true;
 let array = [ 1, 2, 3 ]; // Not working
 ```
 
@@ -91,13 +95,14 @@ while (a > b) {
 
 #### Hello world
 ```
-print["Hello World!"];
+print["Hello World!\n"];
 ```
 
 #### Using Functions
 ```
 let foo[a, b] = {
 	print[a * b];
+	print["\n"];
 };
 
 let bar[c, d] = {
@@ -118,6 +123,7 @@ bar[4, 3];
 let i = 0;
 while (i < 20) {
     print[i];
+	print["\n"];
     i = i + 1;
 };
 ```
@@ -126,6 +132,7 @@ while (i < 20) {
 ```
 let loop[a] = {
 	print[a];
+	print["\n"];
 	if (a > 0) { loop[a-1]; };
 };
 
