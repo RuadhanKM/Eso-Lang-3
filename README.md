@@ -68,11 +68,11 @@ let array = [ 1, 2, 3 ]; // Not working
 
 ```
 let funcName[param1, param2, param3] = {
-    ...
+	...
 };
 
 let funcName2[] = {
-    ...
+	...
 }
 
 ...
@@ -81,14 +81,14 @@ let funcName2[] = {
 #### If Statement
 ```
 if (a > b) {
-    ...
+	...
 };
 ```
 
 #### While Statement
 ```
 while (a > b) {
-    ...
+	...
 };
 ```
 ## Examples
@@ -122,9 +122,9 @@ bar[4, 3];
 ```
 let i = 0;
 while (i < 20) {
-    print[i];
+	print[i];
 	print["\n"];
-    i = i + 1;
+	i = i + 1;
 };
 ```
 
