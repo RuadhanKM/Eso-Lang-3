@@ -1042,11 +1042,6 @@ static int grammerProgram(FILE* sourceFilePtr, FILE* outFilePtr) {
 }
 
 int main(int argc, char** argv) {
-	argc = 2;
-	argv = (char*[2]) {"es3.exe", "test.es3"};
-
-	FILE* test = NULL;
-
 	if (argc < 2) genericError(NULL, 100, "Too few arguments! Usage: es3 fileIn.es3 [fileOut]");
 	if (argc > 3) genericError(NULL, 100, "Too many arguments! Usage: es3 fileIn.es3 [fileOut]");
 
@@ -1092,7 +1087,7 @@ int main(int argc, char** argv) {
 
 	actualpath = _fullpath(NULL, outCompName, 260);
 	printf("%s\r\n", actualpath);
-	if (DEBUGLEVEL == 0) system(actualpath);
+	// if (DEBUGLEVEL == 0) system(actualpath);
 
 	free(command);
 	free(actualpath);
