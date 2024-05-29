@@ -223,9 +223,13 @@ static int __nextToken(FILE* sourceFilePtr, char** value) {
 		curChar = getc(sourceFilePtr);
 		nextChar = ungetc(getc(sourceFilePtr), sourceFilePtr);
 	}
+	if (curChar == '#') {
+		while (curChar != '\n' && curChar != EOF) { curChar = getc(sourceFilePtr); }
+		return __nextToken(sourceFilePtr, value);
+	}
 	if (DEBUGLEVEL > 4) printf("\x1b[38;5;241mCUR CHAR: %c, NEXT CHAR: %c\n\x1b[0m", curChar, nextChar);
 	if (curChar == EOF) return TOKEN_EOF;
-	
+
 	if (curChar == TOKENV_EQL) {
 		if (nextChar == TOKENV_EQL) {
 			curChar = getc(sourceFilePtr);
@@ -1091,9 +1095,6 @@ static int grammerProgram(FILE* sourceFilePtr, FILE* outFilePtr) {
 }
 
 int main(int argc, char** argv) {
-	argc = 2;
-	argv = (char* [2]) {"ex3.exe", "test.es3"};
-
 	if (argc < 2) genericError(NULL, 100, "Too few arguments! Usage: es3 fileIn.es3 [fileOut]");
 	if (argc > 3) genericError(NULL, 100, "Too many arguments! Usage: es3 fileIn.es3 [fileOut]");
 
