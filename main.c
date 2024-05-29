@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include <stdarg.h>
 
+#include "esvutil.h"
 #include "enums.h"
 
 #define DEBUGLEVEL 0
@@ -31,112 +32,6 @@ static int grammerStatement(FILE* sourceFilePointer, FILE* outFilePtr, int curre
  * @return the first TOKEN_... enum after the comparison
  */
 static char* grammerComparison(FILE* sourceFilePtr, FILE* outFilePtr, int currentToken);
-
-/**
- * Errors with message and error code
- * @param message - message in error
- * @param code - error code
- */
-static void genericError(FILE* sourceFilePtr, int code, const char* const message, ...) {
-	va_list args;
-	va_start(args, message);
-
-	if (sourceFilePtr != NULL) {
-		int lineNum = 0;
-		fseek(sourceFilePtr, 1L, SEEK_CUR);
-		while (ftell(sourceFilePtr) > 1) {
-			fseek(sourceFilePtr, -1L, SEEK_CUR);
-			char c = ungetc(getc(sourceFilePtr), sourceFilePtr);
-			if (c == '\n') lineNum++;
-		}
-
-		printf("Error on line %i: ", lineNum+1);
-	}
-
-	vprintf(message, args);
-
-
-	va_end(args);
-
-	__debugbreak();
-	exit(code);
-}
-
-/**
- * Wrapper for malloc that exits and errors if malloc fails
- * @param size - ammount of memory to be allocted, passed to malloc
- * @return Pointer to the memory, returned from malloc
- */
-static void* smalloc(size_t size) {
-	void* m = malloc(size);
-	if (m == NULL) {
-		genericError(NULL, 102, "Out of memory!");
-	}
-	return m;
-}
-
-/**
- * Wrapper for realloc that exits and errors if realloc fails
- * @param size - ammount of memory to be allocted, passed to malloc
- * @return Pointer to the memory, returned from malloc
- */
-static void* srealloc(void* _Block, size_t size) {
-	void* m = realloc(_Block, size);
-	if (m == NULL) {
-		free(m);
-		genericError(NULL, 102, "Out of memory!");
-	}
-	_Block = m;
-	return m;
-}
-
-
-/**
- * Allocates a new string that is the str repeated by times
- * @param str - char string to be repeated
- * @param times - the number of times to repeat str
- * @return The new string, must be freed
- */
-static char* str_repeat(char* str, int times) {
-	if (times < 1) return "";
-	int ostrlen = strlen(str);
-	int size = ostrlen * times + 1;
-	char* ret = (char*) smalloc(sizeof(char) * size);
-	do {
-		for (int i = 0; i < ostrlen; i++) {
-			ret[i + times * ostrlen] = str[i];
-		}
-	} while (times-- > 0);
-	ret[size] = '\0';
-	return ret;
-}
-
-/**
- * Wrapper for strcat that resizes the string to fit before calling
- * @param destination - original string
- * @param source - string to add
- * @return The new string, must be freed
- */
-static char* sstrcat(char* destination, const char* source) {
-	int size = strlen(destination) + strlen(source) + 1;
-	destination = srealloc(destination, size);
-	strcat(destination, source);
-	return destination;
-}
-
-/**
- * Resizes destination to fit both strings and prepends source to destination
- * @param destination - original string
- * @param source - string to add
- * @return The new string, must be freed
- */
-static char* sstrpre(char* destination, const char* source) {
-	size_t len = strlen(source);
-	destination = srealloc(destination, strlen(destination) + len + 1);
-    memmove(destination + len, destination, strlen(destination) + 1);
-	destination = memcpy(destination, source, len);
-	return destination;
-}
 
 /**
  * Returns a string literal representation of a token
@@ -879,10 +774,10 @@ static int grammerStatement(FILE* sourceFilePtr, FILE* outFilePtr, int currentTo
 	if (DEBUGLEVEL > 1) printf("\x1b[32m%sGRAMMER STATEMENT CALL: %s\n\x1b[0m", str_repeat("| ", grammerDepth), getTokenNameFromValue(currentToken));
 	grammerDepth++;
 
-	if (currentToken == TOKEN_EOF) return 2;
-
 	char* iVarVal = NULL;
 	currentToken = peekToken(sourceFilePtr, &iVarVal, 1);
+
+	if (currentToken == TOKEN_EOF) return 2;
 
 	grammerCheck(sourceFilePtr, currentToken, TOKEN_DEF | TOKEN_VAR | TOKEN_CON | TOKEN_RET | TOKEN_LOP);
 
@@ -1093,7 +988,7 @@ int main(int argc, char** argv) {
 		exit(101);
 	}
 
-	fputs("#include <stdio.h>\n#include \"std.c\"\n\n", outFilePtr);
+	fputs("#include <stdio.h>\n#include \"esvutil.h\"\n#include \"std.c\"\n\n", outFilePtr);
 
 	// Read file
 	if (!grammerProgram(sourceFilePtr, outFilePtr)) {
@@ -1108,7 +1003,7 @@ int main(int argc, char** argv) {
 	char* actualpath = _fullpath(NULL, outTransName, 260);
 	char* command = (char*) smalloc(sizeof(char) * (9 + strlen(actualpath) + strlen(outCompName)));
 
-	sprintf(command, "gcc %s -o %s", actualpath, outCompName);
+	sprintf(command, "gcc %s -o %s esvutil.c", actualpath, outCompName);
 	printf("%s\r\n", command);
 	system(command);
 

@@ -46,7 +46,7 @@ Hello World!
 
  - A `#` will ignore all characters untill the next newline 
 
-### Built-in Functions
+### Std Functions
 | Signature | Docs | 
 | :---  | :----- |
 | `print[a]` | Prints `a` to the console |
