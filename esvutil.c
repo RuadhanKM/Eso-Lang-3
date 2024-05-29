@@ -81,39 +81,38 @@ char* sstrpre(char* destination, const char* source) {
 char* esvToString(ES3Var a) {
     // Number
     if (a.type == 1) { 
-        char* buffer = malloc(sizeof(char) * 1080);
+        char* buffer = smalloc(sizeof(char) * 1080);
         snprintf(buffer, 1080, "%g", a.valNum);
         return buffer;
     }
     // String
     else if (a.type == 2) {
-        char* buffer = malloc(sizeof(char) * (strlen(a.valString) + 3));
+        char* buffer = smalloc(sizeof(char) * (strlen(a.valString) + 3));
         buffer[0] = '"';
         buffer[1] = '\0';
-        buffer = strcat(buffer, a.valString);
-        buffer = strcat(buffer, "\"");
+        buffer = sstrcat(buffer, a.valString);
+        buffer = sstrcat(buffer, "\"");
         return buffer;
     }
     // Array
     else if (a.type == 4) {
-        char *buffer = malloc(sizeof(char) * 2);
-        if (buffer == NULL) exit(800);
+        char *buffer = smalloc(sizeof(char) * 2);
         buffer[0] = '[';
         buffer[1] = '\0';
 
         while (a.valArrCur) {
             char* strVal = esvToString(*a.valArrCur);
             int size = strlen(buffer) + strlen(strVal) + 1;
-            buffer = realloc(buffer, size+2);
-            buffer = strcat(buffer, strVal);
+            buffer = srealloc(buffer, size+2);
+            buffer = sstrcat(buffer, strVal);
 
-            if (a.valArrNext) buffer = strcat(buffer, ", ");
+            if (a.valArrNext) buffer = sstrcat(buffer, ", ");
             if (a.valArrCur->type == 1 || a.valArrCur->type == 2 || a.valArrCur->type == 4) free(strVal);
             if (a.valArrNext != NULL) a = *a.valArrNext; else break;
         }
         
-        buffer = realloc(buffer, strlen(buffer)+2);
-        buffer = strcat(buffer, "]");
+        buffer = srealloc(buffer, strlen(buffer)+2);
+        buffer = sstrcat(buffer, "]");
         
         return buffer;
     }

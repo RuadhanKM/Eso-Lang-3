@@ -23,8 +23,7 @@ ES3Var input__raw(ES3Var a) {
     unsigned int len_max = 128;
     unsigned int current_size = 0;
     
-    char *pStr = malloc(len_max);
-    if (pStr == NULL) exit(800);
+    char *pStr = smalloc(len_max);
     current_size = len_max;
 
     puts(esvToString(a));
@@ -36,8 +35,7 @@ ES3Var input__raw(ES3Var a) {
 
         if (i == current_size) {
             current_size = i+len_max;
-            char* tmp = realloc(pStr, current_size);
-            if (tmp == NULL) exit(800);
+            char* tmp = smalloc(pStr, current_size);
             pStr = tmp;
         }
     }
