@@ -12,27 +12,6 @@ typedef struct ES3Var_ {
     struct ES3Var_* valArrNext;
 } ES3Var;
 
-static ES3Var esvArrayAccess(ES3Var a, int index) {
-    int i = 0;
-    ES3Var out = a;
-    while (i < index) {
-        if (out.valArrNext == NULL) return (ES3Var) { .type = 0 };
-        out = *out.valArrNext; 
-        i++;
-    }
-    return *out.valArrCur;
-}
-
-static void esvArraySet(ES3Var* a, int index, ES3Var* val) {
-    int i = 0;
-    while (i < index) {
-        if (!a->valArrNext) return;
-        a = a->valArrNext; 
-        i++;
-    }
-    a->valArrCur = val;
-}
-
 static ES3Var esvComp(ES3Var a, int op, ES3Var b) {
     if (op == 0) return a;
 
