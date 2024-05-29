@@ -4,7 +4,7 @@
 #include "esvutil.h"
 
 ES3Var sqrt__raw(ES3Var a) {
-    if (a.type != 1)
+    if (a.type != 1) return (ES3Var) { .type = 0 };
     return (ES3Var) { .type = 1, .valNum = sqrt(a.valNum) };
 }
 

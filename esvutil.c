@@ -173,6 +173,8 @@ ES3Var esvComp(ES3Var a, int op, ES3Var b) {
                 case 5:
                     return (ES3Var) { .type = 3, .valBool = a.valBool <= b.valBool };
             }
+        default:
+            return (ES3Var) { .type = 0 };
     }
 }
 
@@ -188,6 +190,8 @@ ES3Var esvTerm(ES3Var a, int op, ES3Var b) {
                 case 2:
                     return (ES3Var) { .type = 1, .valNum = a.valNum / b.valNum };
             }
+        default:
+            return (ES3Var) { .type = 0 };
     }
 }
 
@@ -203,6 +207,8 @@ ES3Var esvExpr(ES3Var a, int op, ES3Var b) {
                 case 2:
                     return (ES3Var) { .type = 1, .valNum = a.valNum - b.valNum };
             }
+        default:
+            return (ES3Var) { .type = 0 };
     }
 }
 
@@ -216,6 +222,8 @@ ES3Var esvExpo(ES3Var a, int op, ES3Var b) {
                 case 1:
                     return (ES3Var) { .type = 1, .valNum = pow(a.valNum, b.valNum) };
             }
+        default:
+            return (ES3Var) { .type = 0 };
     }
 }
 
@@ -225,5 +233,7 @@ int esvTruthy(ES3Var a) {
             return a.valNum != 0;
         case 3:
             return a.valBool;
+        default:
+            return 0;
     }
 }
