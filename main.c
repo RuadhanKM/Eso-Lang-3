@@ -6,7 +6,7 @@
 
 #include "enums.h"
 
-#define DEBUGLEVEL 1
+#define DEBUGLEVEL 0
 
 #if DEBUGLEVEL > 2
 #include <intrin.h>
@@ -651,23 +651,6 @@ static char* grammerPrimary(FILE* sourceFilePtr, FILE* outFilePtr, int currentTo
 		return grammerArray(sourceFilePtr, outFilePtr, currentToken, 0, 0);
 	} else if (nToken == TOKEN_VAR && n2Token == TOKEN_BAR) {
 		return grammerFunc(sourceFilePtr, outFilePtr, currentToken);
-	} else if (nToken == TOKEN_VAR && n2Token == TOKEN_BCB) {
-		char* arrAccVal = smalloc(1);
-		arrAccVal[0] = '\0';
-
-		char* arrIndex = NULL;
-		grammerMatch(sourceFilePtr, TOKEN_VAR);
-		grammerMatch(sourceFilePtr, TOKEN_BCB);
-		grammerCheck(sourceFilePtr, nextToken(sourceFilePtr, &arrIndex), TOKEN_NUM);
-		grammerMatch(sourceFilePtr, TOKEN_ECB);
-
-		arrAccVal = sstrcat(arrAccVal, "esvArrayAccess(");
-		arrAccVal = sstrcat(arrAccVal, potVarVal);
-		arrAccVal = sstrcat(arrAccVal, "__raw, ");
-		arrAccVal = sstrcat(arrAccVal, arrIndex);
-		arrAccVal = sstrcat(arrAccVal, ")");
-
-		return arrAccVal;
 	} else {
 		char* varVal = smalloc(1);
 		varVal[0] = '\0';
@@ -729,6 +712,24 @@ static char* grammerUnary(FILE* sourceFilePtr, FILE* outFilePtr, int currentToke
 	free(inExp);
 
 	if (isUnary) outExpr = sstrcat(outExpr, ")");
+
+	// Arrays
+	while (peekToken(sourceFilePtr, NULL, 1) == TOKEN_BCB) {
+		grammerMatch(sourceFilePtr, TOKEN_BCB);
+		char* strindex = NULL;
+		grammerCheck(sourceFilePtr, nextToken(sourceFilePtr, &strindex), TOKEN_NUM);
+		long long index = strtol(strindex, NULL, 10);
+		outExpr = sstrpre(outExpr, "(*((&(");
+		outExpr = sstrcat(outExpr, "))->");
+
+		for (int i=0; i<index; i++) {
+			outExpr = sstrcat(outExpr, "valArrNext->");
+		}
+
+		outExpr = sstrcat(outExpr, "valArrCur))");
+		free(strindex);
+		grammerMatch(sourceFilePtr, TOKEN_ECB);
+	}
 
 	grammerDepth--;
 	return outExpr;
@@ -883,10 +884,6 @@ static int grammerStatement(FILE* sourceFilePtr, FILE* outFilePtr, int currentTo
 	char* iVarVal = NULL;
 	currentToken = peekToken(sourceFilePtr, &iVarVal, 1);
 
-	if (currentToken == TOKEN_EOF) return 2;
-
-	if (currentToken == TOKEN_EOF) return 0;
-
 	grammerCheck(sourceFilePtr, currentToken, TOKEN_DEF | TOKEN_VAR | TOKEN_CON | TOKEN_RET | TOKEN_LOP);
 
 	// Define var / function
@@ -955,36 +952,15 @@ static int grammerStatement(FILE* sourceFilePtr, FILE* outFilePtr, int currentTo
 		grammerCheck(sourceFilePtr, pToken, TOKEN_EQL | TOKEN_BAR | TOKEN_BCB);
 
 		// Redefine var
-		if (pToken == TOKEN_EQL) {
+		if (pToken == TOKEN_EQL || pToken == TOKEN_BCB) {
 			if (DEBUGLEVEL > 0) printf("\x1b[1;36mREDEFINE VAR\x1b[0m\n");
-			grammerMatch(sourceFilePtr, TOKEN_VAR); // a | = 12;
+			fputs(grammerUnary(sourceFilePtr, outFilePtr, 0), outFilePtr);
 			grammerMatch(sourceFilePtr, TOKEN_EQL); // a = | 12;
-			fputs(iVarVal, outFilePtr);
-			fputs("__raw", outFilePtr);
 			fputs(" = ", outFilePtr);
 			char* inComp = grammerComparison(sourceFilePtr, outFilePtr, TOKEN_EQL);
 			fputs(inComp, outFilePtr);
 			fputs(";\n", outFilePtr);
 			grammerMatch(sourceFilePtr, TOKEN_EDL);
-		} 
-		// Set array val
-		else if (pToken == TOKEN_BCB) {
-			if (DEBUGLEVEL > 0) printf("\x1b[1;36mREDEFINE ARRAY VAR\x1b[0m\n");
-			char* arrIndex = NULL;
-			grammerMatch(sourceFilePtr, TOKEN_VAR);
-			grammerMatch(sourceFilePtr, TOKEN_BCB);
-			grammerCheck(sourceFilePtr, nextToken(sourceFilePtr, &arrIndex), TOKEN_NUM);
-			grammerMatch(sourceFilePtr, TOKEN_ECB);
-			grammerMatch(sourceFilePtr, TOKEN_EQL);
-
-			fputs("esvArraySet(&", outFilePtr);
-			fputs(iVarVal, outFilePtr);
-			fputs("__raw, ", outFilePtr);
-			fputs(arrIndex, outFilePtr);
-			fputs(", &", outFilePtr);
-			fputs(grammerComparison(sourceFilePtr, outFilePtr, TOKEN_EQL), outFilePtr);
-			grammerMatch(sourceFilePtr, TOKEN_EDL);
-			fputs(");\n", outFilePtr);
 		}
 		// Call function
 		else { 
