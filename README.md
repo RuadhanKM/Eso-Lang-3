@@ -53,10 +53,10 @@ Hello World!
 | `input[a] -> string` | Prints `a` and then waits for user input, when the user presses enter, the function returns the string input. Using this function will cause a memory leak :( |
 | `sqrt[a] -> number` | Gets the square root of number a |
 | `println[a]` | Prints `a` and a newline to the console |
-| `sin[a]` | Gets sin of angle a |
-| `cos[a]` | Gets cos of angle a |
-| `tan[a]` | Gets tan of angle a |
-| `log[a, b]` | Gets log<sub>b</sub> of number a |
+| `sin[a] -> number` | Gets sin of angle a |
+| `cos[a] -> number` | Gets cos of angle a |
+| `tan[a] -> number` | Gets tan of angle a |
+| `log[a, b] -> number` | Gets log<sub>b</sub> of number a |
 
 
 ### Std Constants
