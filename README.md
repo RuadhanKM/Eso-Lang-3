@@ -47,9 +47,10 @@ Hello World!
 ### Built-in Functions
 | Signature | Docs | 
 | :---  | :----- |
-| `print[a]` | Prints `a` to console |
+| `print[a]` | Prints `a` to the console |
 | `input[a] -> string` | Prints `a` and then waits for user input, when the user presses enter, the function returns the string input. Using this function will cause a memory leak :( |
 | `sqrt[a] -> number` | Gets the square root of a number |
+| `println[a]` | Prints `a` and a newline to the console
 
 ### Syntax
 

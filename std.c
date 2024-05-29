@@ -7,16 +7,48 @@ static ES3Var sqrt__raw(ES3Var a) {
 }
 
 static char* esvToString(ES3Var a) {
-    char *buffer = malloc(1080);
-    if (buffer == NULL) exit(800);
+    // Number
+    if (a.type == 1) { 
+        char* buffer = malloc(sizeof(char) * 1080);
+        snprintf(buffer, 1080, "%g", a.valNum);
+        return buffer;
+    }
+    // String
+    else if (a.type == 2) {
+        char* buffer = malloc(sizeof(char) * (strlen(a.valString) + 3));
+        buffer[0] = '"';
+        buffer[1] = '\0';
+        buffer = strcat(buffer, a.valString);
+        buffer = strcat(buffer, "\"");
+        return buffer;
+    }
+    // Array
+    else if (a.type == 4) {
+        char *buffer = malloc(sizeof(char) * 2);
+        if (buffer == NULL) exit(800);
+        buffer[0] = '[';
+        buffer[1] = '\0';
+
+        while (a.valArrCur) {
+            char* strVal = esvToString(*a.valArrCur);
+            int size = strlen(buffer) + strlen(strVal) + 1;
+            buffer = realloc(buffer, size+2);
+            buffer = strcat(buffer, strVal);
+
+            if (a.valArrNext) buffer = strcat(buffer, ", ");
+            if (a.valArrCur->type == 1 || a.valArrCur->type == 2 || a.valArrCur->type == 4) free(strVal);
+            if (a.valArrNext != NULL) a = *a.valArrNext; else break;
+        }
+        
+        buffer = realloc(buffer, strlen(buffer)+2);
+        buffer = strcat(buffer, "]");
+        
+        return buffer;
+    }
+
     switch (a.type) {
         case 0:
             return "Null";
-        case 1:
-            snprintf(buffer, 1080, "%g", a.valNum);
-            return buffer;
-        case 2:
-            return a.valString;
         case 3:
             return a.valBool ? "true" : "false";
         default:
@@ -27,7 +59,12 @@ static char* esvToString(ES3Var a) {
 static void print__raw(ES3Var a) {
     char* out = esvToString(a);
     printf(out);
-    if (a.type == 1) free(out);
+    if (a.type == 1 || a.type == 2 || a.type == 4) free(out);
+}
+
+static void println__raw(ES3Var a) {
+    print__raw(a);
+    printf("\n");
 }
 
 static ES3Var input__raw(ES3Var a) {
