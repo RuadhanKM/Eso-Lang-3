@@ -51,8 +51,21 @@ Hello World!
 | :---  | :----- |
 | `print[a]` | Prints `a` to the console |
 | `input[a] -> string` | Prints `a` and then waits for user input, when the user presses enter, the function returns the string input. Using this function will cause a memory leak :( |
-| `sqrt[a] -> number` | Gets the square root of a number |
+| `sqrt[a] -> number` | Gets the square root of number a |
 | `println[a]` | Prints `a` and a newline to the console |
+| `sin[a]` | Gets sin of angle a |
+| `cos[a]` | Gets cos of angle a |
+| `tan[a]` | Gets tan of angle a |
+| `log[a, b]` | Gets log<sub>b</sub> of number a |
+
+
+### Std Constants
+| Name | Value | Notes |
+| :---  | :----- | :- |
+| `PI` | `3.14159265358979323846` | |
+| `E` | `2.71828182845904523536` | |
+| `RAD` | `0.01745329238474369049072265625` | Multiply by an angle in degrees to get its value in radians |
+| `DEG` | `57.295780181884765625` | Multiply by an angle in radians to get its value in degrees |
 
 ### Syntax
 
