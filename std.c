@@ -35,8 +35,7 @@ ES3Var input__raw(ES3Var a) {
 
         if (i == current_size) {
             current_size = i+len_max;
-            char* tmp = smalloc(pStr, current_size);
-            pStr = tmp;
+            pStr = srealloc(pStr, current_size);
         }
     }
 
